@@ -61,11 +61,12 @@ module EVM
                         <callValue> 0          </callValue>             // I_v
 
                         // \mu_*
-                        <wordStack>   .WordStack </wordStack>           // \mu_s
-                        <localMem>    .Map       </localMem>            // \mu_m
-                        <pc>          0          </pc>                  // \mu_pc
-                        <gas>         0          </gas>                 // \mu_g
-                        <previousGas> 0          </previousGas>
+                        <wordStack>     .WordStack </wordStack>         // \mu_s
+                        <wordStackSize> 0          </wordStackSize>     // #sizeWordStack(\mu_s)
+                        <localMem>      .Map       </localMem>          // \mu_m
+                        <pc>            0          </pc>                // \mu_pc
+                        <gas>           0          </gas>               // \mu_g
+                        <previousGas>   0          </previousGas>
                       </txExecState>
 
                       // A_* (execution substate)
@@ -179,36 +180,38 @@ module EVM
 // -   `#dropCallStack` removes the top element of the `callStack`.
 
 
-    syntax State ::= "{" Int "|" Int "|" Map "|" Int "|" WordStack "|" Int "|" WordStack "|" Map "|" Int "}"
- // --------------------------------------------------------------------------------------------------------
+    syntax State ::= "{" Int "|" Int "|" Map "|" Int "|" WordStack "|" Int "|" WordStack "|" Int "|" Map "|" Int "}"
+ // ----------------------------------------------------------------------------------------------------------------
 
     syntax InternalOp ::= "#pushCallStack"
  // --------------------------------------
     rule <k> #pushCallStack => . ... </k>
-         <callStack> (.List => ListItem({ ACCT | GAVAIL | PGM | CR | CD | CV | WS | LM | PCOUNT })) ... </callStack>
-         <id>        ACCT   </id>
-         <gas>       GAVAIL </gas>
-         <program>   PGM    </program>
-         <caller>    CR     </caller>
-         <callData>  CD     </callData>
-         <callValue> CV     </callValue>
-         <wordStack> WS     </wordStack>
-         <localMem>  LM     </localMem>
-         <pc>        PCOUNT </pc>
+         <callStack> (.List => ListItem({ ACCT | GAVAIL | PGM | CR | CD | CV | WS | SIZE | LM | PCOUNT })) ... </callStack>
+         <id>            ACCT   </id>
+         <gas>           GAVAIL </gas>
+         <program>       PGM    </program>
+         <caller>        CR     </caller>
+         <callData>      CD     </callData>
+         <callValue>     CV     </callValue>
+         <wordStack>     WS     </wordStack>
+         <wordStackSize> SIZE   </wordStackSize>
+         <localMem>      LM     </localMem>
+         <pc>            PCOUNT </pc>
 
     syntax InternalOp ::= "#popCallStack"
  // -------------------------------------
     rule <k> #popCallStack => . ... </k>
-         <callStack> (ListItem({ ACCT | GAVAIL | PGM | CR | CD | CV | WS | LM | PCOUNT }) => .List) ... </callStack>
-         <id>        _ => ACCT   </id>
-         <gas>       _ => GAVAIL </gas>
-         <program>   _ => PGM    </program>
-         <caller>    _ => CR     </caller>
-         <callData>  _ => CD     </callData>
-         <callValue> _ => CV     </callValue>
-         <wordStack> _ => WS     </wordStack>
-         <localMem>  _ => LM     </localMem>
-         <pc>        _ => PCOUNT </pc>
+         <callStack> (ListItem({ ACCT | GAVAIL | PGM | CR | CD | CV | WS | SIZE | LM | PCOUNT }) => .List) ... </callStack>
+         <id>            _ => ACCT   </id>
+         <gas>           _ => GAVAIL </gas>
+         <program>       _ => PGM    </program>
+         <caller>        _ => CR     </caller>
+         <callData>      _ => CD     </callData>
+         <callValue>     _ => CV     </callValue>
+         <wordStack>     _ => WS     </wordStack>
+         <wordStackSize> _ => SIZE   </wordStackSize>
+         <localMem>      _ => LM     </localMem>
+         <pc>            _ => PCOUNT </pc>
 
     syntax InternalOp ::= "#dropCallStack"
  // --------------------------------------
@@ -403,14 +406,14 @@ module EVM
     syntax InternalOp ::= "#stackNeeded?" "[" OpCode "]"
  // ----------------------------------------------------
     rule <k> #stackNeeded? [ OP ] => #exception ... </k>
-         <wordStack> WS </wordStack>
-   requires #sizeWordStack(WS) <Int #stackNeeded(OP)
-     orBool #sizeWordStack(WS) +Int #stackDelta(OP) >Int 1024
+         <wordStackSize> WS </wordStackSize>
+   requires WS <Int #stackNeeded(OP)
+     orBool WS +Int #stackDelta(OP) >Int 1024
 
     rule <k> #stackNeeded? [ OP ] => .K ... </k>
-         <wordStack> WS </wordStack>
-    requires notBool (#sizeWordStack(WS) <Int #stackNeeded(OP)
-             orBool   #sizeWordStack(WS) +Int #stackDelta(OP) >Int 1024)
+         <wordStackSize> WS </wordStackSize>
+    requires notBool (WS <Int #stackNeeded(OP)
+             orBool   WS +Int #stackDelta(OP) >Int 1024)
 
     syntax Int ::= #stackNeeded ( OpCode ) [function]
  // -------------------------------------------------
@@ -490,10 +493,10 @@ module EVM
                         | TernStackOp Int Int Int
                         | QuadStackOp Int Int Int Int
  // -------------------------------------------------
-    rule <k> #exec [ UOP:UnStackOp   => UOP #addr?(UOP, W0)          ] ... </k> <wordStack> W0 : WS                => WS </wordStack>
-    rule <k> #exec [ BOP:BinStackOp  => BOP #addr?(BOP, W0) W1       ] ... </k> <wordStack> W0 : W1 : WS           => WS </wordStack>
-    rule <k> #exec [ TOP:TernStackOp => TOP #addr?(TOP, W0) W1 W2    ] ... </k> <wordStack> W0 : W1 : W2 : WS      => WS </wordStack>
-    rule <k> #exec [ QOP:QuadStackOp => QOP #addr?(QOP, W0) W1 W2 W3 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : WS => WS </wordStack>
+    rule <k> #exec [ UOP:UnStackOp   => UOP #addr?(UOP, W0)          ] ... </k> <wordStack> W0 : WS                => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 1 </wordStackSize>
+    rule <k> #exec [ BOP:BinStackOp  => BOP #addr?(BOP, W0) W1       ] ... </k> <wordStack> W0 : W1 : WS           => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 2 </wordStackSize>
+    rule <k> #exec [ TOP:TernStackOp => TOP #addr?(TOP, W0) W1 W2    ] ... </k> <wordStack> W0 : W1 : W2 : WS      => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 3 </wordStackSize>
+    rule <k> #exec [ QOP:QuadStackOp => QOP #addr?(QOP, W0) W1 W2 W3 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : WS => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 4 </wordStackSize>
 
     syntax Int ::= "#addr?" "(" OpCode "," Int ")" [function]
  // ---------------------------------------------------------
@@ -518,8 +521,8 @@ module EVM
     syntax InternalOp ::= CallSixOp Int Int     Int Int Int Int
                         | CallOp    Int Int Int Int Int Int Int
  // -----------------------------------------------------------
-    rule <k> #exec [ CSO:CallSixOp => CSO W0 #addr(W1)    W2 W3 W4 W5 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : W4 : W5 : WS      => WS </wordStack>
-    rule <k> #exec [ CO:CallOp     => CO  W0 #addr(W1) W2 W3 W4 W5 W6 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : W4 : W5 : W6 : WS => WS </wordStack>
+    rule <k> #exec [ CSO:CallSixOp => CSO W0 #addr(W1)    W2 W3 W4 W5 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : W4 : W5 : WS      => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 6 </wordStackSize>
+    rule <k> #exec [ CO:CallOp     => CO  W0 #addr(W1) W2 W3 W4 W5 W6 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : W4 : W5 : W6 : WS => WS </wordStack> <wordStackSize> SIZE => SIZE -Int 7 </wordStackSize>
 
 
 // -   `#gas` calculates how much gas this operation costs, and takes into account
@@ -664,8 +667,8 @@ module EVM
 
     syntax InternalOp ::= "#push" | "#setStack" WordStack
  // -----------------------------------------------------
-    rule <k> W0:Int ~> #push => . ... </k> <wordStack> WS => W0 : WS </wordStack>
-    rule <k> #setStack WS    => . ... </k> <wordStack> _  => WS      </wordStack>
+    rule <k> W0:Int ~> #push => . ... </k> <wordStack> WS => W0 : WS </wordStack> <wordStackSize> SIZE => SIZE +Int 1        </wordStackSize>
+    rule <k> #setStack WS    => . ... </k> <wordStack> _  => WS      </wordStack> <wordStackSize> _    => #sizeWordStack(WS) </wordStackSize>
 
 
 // -   `#newAccount_` allows declaring a new empty account with the given address
@@ -750,8 +753,8 @@ module EVM
 
     syntax StackOp ::= DUP ( Int ) | SWAP ( Int )
  // ---------------------------------------------
-    rule <k> DUP(N)  WS:WordStack => #setStack ((WS [ N -Int 1 ]) : WS)                      ... </k>
-    rule <k> SWAP(N) (W0 : WS)    => #setStack ((WS [ N -Int 1 ]) : (WS [ N -Int 1 := W0 ])) ... </k>
+    rule <k> DUP(N)  WS::WordStack => #setStack ((WS [ N -Int 1 ]) : WS)                      ... </k>
+    rule <k> SWAP(N) (W0 : WS)     => #setStack ((WS [ N -Int 1 ]) : (WS [ N -Int 1 := W0 ])) ... </k>
 
     syntax PushOp ::= PUSH ( Int , Int )
  // ------------------------------------
@@ -951,6 +954,7 @@ module EVM
     rule <k> LOG(N) MEMSTART MEMWIDTH => . ... </k>
          <id> ACCT </id>
          <wordStack> WS => #drop(N, WS) </wordStack>
+         <wordStackSize> SIZE => SIZE -Int N </wordStackSize>
          <localMem> LM </localMem>
          <log> ... (.Set => SetItem({ ACCT | #take(N, WS) | #range(LM, MEMSTART, MEMWIDTH) })) </log>
       requires #sizeWordStack(WS) >=Int N

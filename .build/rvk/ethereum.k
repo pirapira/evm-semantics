@@ -168,16 +168,17 @@ module ETHEREUM-SIMULATION
          <callStack>  _ => .List      </callStack>
          <callLog>    _ => .Set       </callLog>
 
-         <program>     _ => .Map       </program>
-         <id>          _ => 0          </id>
-         <caller>      _ => 0          </caller>
-         <callData>    _ => .WordStack </callData>
-         <callValue>   _ => 0          </callValue>
-         <wordStack>   _ => .WordStack </wordStack>
-         <localMem>    _ => .Map       </localMem>
-         <pc>          _ => 0          </pc>
-         <gas>         _ => 0          </gas>
-         <previousGas> _ => 0          </previousGas>
+         <program>       _ => .Map       </program>
+         <id>            _ => 0          </id>
+         <caller>        _ => 0          </caller>
+         <callData>      _ => .WordStack </callData>
+         <callValue>     _ => 0          </callValue>
+         <wordStack>     _ => .WordStack </wordStack>
+         <wordStackSize> _ => 0          </wordStackSize>
+         <localMem>      _ => .Map       </localMem>
+         <pc>            _ => 0          </pc>
+         <gas>           _ => 0          </gas>
+         <previousGas>   _ => 0          </previousGas>
 
          <selfDestruct> _ => .Set </selfDestruct>
          <log>          _ => .Set </log>
