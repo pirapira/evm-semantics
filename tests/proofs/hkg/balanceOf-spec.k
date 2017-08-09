@@ -31,11 +31,12 @@ module BALANCE-OF-SPEC
                <callData>     .WordStack   </callData>
                <callValue>    0            </callValue>
 
-               <wordStack>    WS    => ?A:WordStack </wordStack>
-               <localMem>     .Map  => ?B:Map       </localMem>
-               <pc>           316   => 381          </pc>
-               <gas>          G     => G -Int 274   </gas>
-               <previousGas>  _     => _            </previousGas>
+               <wordStack>     WS     => ?A:WordStack </wordStack>
+               <wordStackSize> WSSIZE => ?C:Int       </wordStackSize>
+               <localMem>      .Map   => ?B:Map       </localMem>
+               <pc>            316    => 381          </pc>
+               <gas>           G      => G -Int 274   </gas>
+               <previousGas>   _      => _            </previousGas>
              </txExecState>
 
              <substate>
@@ -73,6 +74,6 @@ module BALANCE-OF-SPEC
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires #sizeWordStack(WS) <Int 1018 andBool G >=Int 274
+      requires WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1018 andBool G >=Int 274
 endmodule
 

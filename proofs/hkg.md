@@ -60,6 +60,7 @@ These parts of the proof change, but we would like to avoid specifying exactly h
          <wordStack>                        TRANSFER : %CALLER_ID : WS
                   => B2 +Int TRANSFER : 0 : TRANSFER : %CALLER_ID : WS
          </wordStack>
+         <wordStackSize> WSSIZE => WSSIZE +Int 2 </wordStackSize>
          <accounts>
            <account>
              <acctID>   %ACCT_ID     </acctID>
@@ -79,7 +80,8 @@ These parts of the proof change, but we would like to avoid specifying exactly h
       requires TRANSFER >Int 0
        andBool B1 >=Int TRANSFER andBool B1 <Int pow256
        andBool B2 >=Int 0        andBool B2 +Int TRANSFER <Int pow256
-       andBool #sizeWordStack(WS) <Int 1017
+       andBool WSSIZE ==Int #sizeWordStack(WS)
+       andBool WSSIZE <Int 1017
        andBool G >=Int 10544
 endmodule
 ```
@@ -93,6 +95,7 @@ endmodule
          <wordStack>     TRANSFER : %CALLER_ID : WS
                   => 0 : TRANSFER : %CALLER_ID : WS
          </wordStack>
+         <wordStackSize> WSSIZE => WSSIZE +Int 1 </wordStackSize>
          <accounts>
            <account>
              <acctID>   %ACCT_ID     </acctID>
@@ -110,7 +113,8 @@ endmodule
          </accounts>
 
       requires (TRANSFER <=Int 0 orBool B1 <Int TRANSFER)
-       andBool #sizeWordStack(WS) <Int 1015
+       andBool WSSIZE ==Int #sizeWordStack(WS)
+       andBool WSSIZE <Int 1015
        andBool G >=Int 221
        ensures G -Int G1 <=Int 221
 endmodule
@@ -175,6 +179,7 @@ These parts of the proof change, but we would like to avoid specifying exactly h
          <wordStack>                        TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
                   => A1 -Int TRANSFER : 0 : TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
          </wordStack>
+         <wordStackSize> WSSIZE => WSSIZE +Int 2 </wordStackSize>
          <accounts>
            <account>
              <acctID>   %ACCT_ID     </acctID>
@@ -195,7 +200,8 @@ These parts of the proof change, but we would like to avoid specifying exactly h
        andBool B1 >=Int TRANSFER andBool B1 <Int pow256
        andBool A1 >=Int TRANSFER andBool A1 <Int pow256
        andBool B2 >=Int 0        andBool B2 +Int TRANSFER <Int pow256
-       andBool #sizeWordStack(WS) <Int 1016
+       andBool WSSIZE ==Int #sizeWordStack(WS)
+       andBool WSSIZE <Int 1016
        andBool G >=Int 16071
 endmodule
 ```
@@ -209,6 +215,7 @@ endmodule
          <wordStack>     TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
                   => 0 : TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
          </wordStack>
+         <wordStackSize> WSSIZE => WSSIZE +Int 1 </wordStackSize>
          <accounts>
            <account>
              <acctID>   %ACCT_ID     </acctID>
@@ -226,7 +233,8 @@ endmodule
          </accounts>
 
       requires (TRANSFER <=Int 0 orBool B1 <Int TRANSFER orBool A1 <Int TRANSFER)
-       andBool #sizeWordStack(WS) <Int 1016
+       andBool WSSIZE ==Int #sizeWordStack(WS)
+       andBool WSSIZE <Int 1016
        andBool G >=Int 485
        ensures G -Int G1 <=Int 485
 endmodule
@@ -255,16 +263,17 @@ imports ETHEREUM-SIMULATION
              <callLog>       .Set       </callLog>
 
              <txExecState>
-               <program>     %HKG_Program          </program>
-               <id>          %ACCT_ID              </id>
-               <caller>      %CALLER_ID            </caller>
-               <callData>    .WordStack            </callData>
-               <callValue>   0                     </callValue>
-               <wordStack>   WS   => WS1:WordStack </wordStack>
-               <localMem>    .Map => ?B:Map        </localMem>
-               <pc>          469  => 573           </pc>
-               <gas>         G    => G -Int 415    </gas>
-               <previousGas> _    => _             </previousGas>
+               <program>       %HKG_Program          </program>
+               <id>            %ACCT_ID              </id>
+               <caller>        %CALLER_ID            </caller>
+               <callData>      .WordStack            </callData>
+               <callValue>     0                     </callValue>
+               <wordStack>     WS   => WS1:WordStack </wordStack>
+               <wordStackSize> WSSIZE => WSSIZE1:Int </wordStackSize>
+               <localMem>      .Map => ?B:Map        </localMem>
+               <pc>            469  => 573           </pc>
+               <gas>           G    => G -Int 415    </gas>
+               <previousGas>   _    => _             </previousGas>
              </txExecState>
 
              <substate>
@@ -302,7 +311,7 @@ imports ETHEREUM-SIMULATION
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires G >=Int 415  andBool #sizeWordStack(WS) <Int 1017
+      requires G >=Int 415  andBool WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1017
 endmodule
 ```
 
@@ -335,11 +344,12 @@ module APPROVE-SPEC
                <callData>    .WordStack   </callData>
                <callValue>   0            </callValue>
 
-               <wordStack>   2000 : %ORIGIN_ID : WS => ?A:WordStack </wordStack>
-               <localMem>    .Map                   => ?B:Map       </localMem>
-               <pc>          574                    => 810          </pc>
-               <gas>         G                      => G -Int 7031  </gas>
-               <previousGas> _                      => _            </previousGas>
+               <wordStack>     2000 : %ORIGIN_ID : WS => ?A:WordStack </wordStack>
+               <wordStackSize> WSSIZE                 => ?C:Int       </wordStackSize>
+               <localMem>      .Map                   => ?B:Map       </localMem>
+               <pc>            574                    => 810          </pc>
+               <gas>           G                      => G -Int 7031  </gas>
+               <previousGas>   _                      => _            </previousGas>
 
              </txExecState>
              <substate>
@@ -378,7 +388,7 @@ module APPROVE-SPEC
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires #sizeWordStack(WS) <Int 1014  andBool G >=Int 7031
+      requires WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1014  andBool G >=Int 7031
 endmodule
 ```
 
@@ -411,11 +421,12 @@ module BALANCE-OF-SPEC
                <callData>     .WordStack   </callData>
                <callValue>    0            </callValue>
 
-               <wordStack>    WS    => ?A:WordStack </wordStack>
-               <localMem>     .Map  => ?B:Map       </localMem>
-               <pc>           316   => 381          </pc>
-               <gas>          G     => G -Int 274   </gas>
-               <previousGas>  _     => _            </previousGas>
+               <wordStack>     WS     => ?A:WordStack </wordStack>
+               <wordStackSize> WSSIZE => ?C:Int       </wordStackSize>
+               <localMem>      .Map   => ?B:Map       </localMem>
+               <pc>            316    => 381          </pc>
+               <gas>           G      => G -Int 274   </gas>
+               <previousGas>   _      => _            </previousGas>
              </txExecState>
 
              <substate>
@@ -453,6 +464,6 @@ module BALANCE-OF-SPEC
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires #sizeWordStack(WS) <Int 1018 andBool G >=Int 274
+      requires WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1018 andBool G >=Int 274
 endmodule
 ```

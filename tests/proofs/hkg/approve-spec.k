@@ -31,11 +31,12 @@ module APPROVE-SPEC
                <callData>    .WordStack   </callData>
                <callValue>   0            </callValue>
 
-               <wordStack>   2000 : %ORIGIN_ID : WS => ?A:WordStack </wordStack>
-               <localMem>    .Map                   => ?B:Map       </localMem>
-               <pc>          574                    => 810          </pc>
-               <gas>         G                      => G -Int 7031  </gas>
-               <previousGas> _                      => _            </previousGas>
+               <wordStack>     2000 : %ORIGIN_ID : WS => ?A:WordStack </wordStack>
+               <wordStackSize> WSSIZE                 => ?C:Int       </wordStackSize>
+               <localMem>      .Map                   => ?B:Map       </localMem>
+               <pc>            574                    => 810          </pc>
+               <gas>           G                      => G -Int 7031  </gas>
+               <previousGas>   _                      => _            </previousGas>
 
              </txExecState>
              <substate>
@@ -74,6 +75,6 @@ module APPROVE-SPEC
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires #sizeWordStack(WS) <Int 1014  andBool G >=Int 7031
+      requires WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1014  andBool G >=Int 7031
 endmodule
 

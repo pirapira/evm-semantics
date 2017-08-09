@@ -61,6 +61,7 @@ module TRANSFER-FROM-SPEC
          <wordStack>                        TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
                   => A1 -Int TRANSFER : 0 : TRANSFER : %CALLER_ID : %ORIGIN_ID : WS
          </wordStack>
+         <wordStackSize> WSSIZE => WSSIZE +Int 2 </wordStackSize>
          <accounts>
            <account>
              <acctID>   %ACCT_ID     </acctID>
@@ -81,7 +82,8 @@ module TRANSFER-FROM-SPEC
        andBool B1 >=Int TRANSFER andBool B1 <Int pow256
        andBool A1 >=Int TRANSFER andBool A1 <Int pow256
        andBool B2 >=Int 0        andBool B2 +Int TRANSFER <Int pow256
-       andBool #sizeWordStack(WS) <Int 1016
+       andBool WSSIZE ==Int #sizeWordStack(WS)
+       andBool WSSIZE <Int 1016
        andBool G >=Int 16071
 endmodule
 

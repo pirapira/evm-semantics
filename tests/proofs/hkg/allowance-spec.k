@@ -25,16 +25,17 @@ imports ETHEREUM-SIMULATION
              <callLog>       .Set       </callLog>
 
              <txExecState>
-               <program>     %HKG_Program          </program>
-               <id>          %ACCT_ID              </id>
-               <caller>      %CALLER_ID            </caller>
-               <callData>    .WordStack            </callData>
-               <callValue>   0                     </callValue>
-               <wordStack>   WS   => WS1:WordStack </wordStack>
-               <localMem>    .Map => ?B:Map        </localMem>
-               <pc>          469  => 573           </pc>
-               <gas>         G    => G -Int 415    </gas>
-               <previousGas> _    => _             </previousGas>
+               <program>       %HKG_Program          </program>
+               <id>            %ACCT_ID              </id>
+               <caller>        %CALLER_ID            </caller>
+               <callData>      .WordStack            </callData>
+               <callValue>     0                     </callValue>
+               <wordStack>     WS   => WS1:WordStack </wordStack>
+               <wordStackSize> WSSIZE => WSSIZE1:Int </wordStackSize>
+               <localMem>      .Map => ?B:Map        </localMem>
+               <pc>            469  => 573           </pc>
+               <gas>           G    => G -Int 415    </gas>
+               <previousGas>   _    => _             </previousGas>
              </txExecState>
 
              <substate>
@@ -72,6 +73,6 @@ imports ETHEREUM-SIMULATION
              <messages> .Bag </messages>
            </network>
          </ethereum>
-      requires G >=Int 415  andBool #sizeWordStack(WS) <Int 1017
+      requires G >=Int 415  andBool WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1017
 endmodule
 

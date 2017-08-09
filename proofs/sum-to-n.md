@@ -36,13 +36,14 @@ Here is the meat of the proof-claims:
 -   `N` is sufficiently low that overflow will not occur in execution.
 
 ```{.k .sum-to-n}
-         <pc>        0  => 53                                </pc>
-         <wordStack> WS => 0 : N *Int (N +Int 1) /Int 2 : WS </wordStack>
-         <gas>       G  => G -Int (52 *Int N +Int 27)        </gas>
+         <pc>            0     => 53                                </pc>
+         <wordStack>     WS    => 0 : N *Int (N +Int 1) /Int 2 : WS </wordStack>
+         <wordStackSize> WSSZE => WSSIZE +Int 2                     </wordStackSize>
+         <gas>           G     => G -Int (52 *Int N +Int 27)        </gas>
 
       requires N >=Int 0
        andBool N <=Int 340282366920938463463374607431768211455  // largest integer for which the program does not overflow, a test point to the program for checking overflow of the sum program
-       andBool #sizeWordStack(WS) <Int 1021
+       andBool WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1021
        andBool G >=Int 52 *Int N +Int 27
 ```
 
@@ -70,14 +71,15 @@ Here, we are providing the behaviour of the rest of the program at any point it 
 -   `S` and `I` are sufficiently low that overflow will not occur during execution.
 
 ```{.k .sum-to-n}
-         <pc>        35         => 53                                       </pc>
-         <wordStack> I : S : WS => 0 : S +Int I *Int (I +Int 1) /Int 2 : WS </wordStack>
-         <gas>       G          => G -Int (52 *Int I +Int 21)               </gas>
+         <pc>            35         => 53                                       </pc>
+         <wordStack>     I : S : WS => 0 : S +Int I *Int (I +Int 1) /Int 2 : WS </wordStack>
+         <wordStackSize> WSSIZE     => WSSIZE                                   </wordStackSize>
+         <gas>           G          => G -Int (52 *Int I +Int 21)               </gas>
 
       requires I >=Int 0
        andBool S >=Int 0
        andBool S +Int I *Int (I +Int 1) /Int 2 <Int pow256
-       andBool #sizeWordStack(WS) <Int 1021
+       andBool WSSIZE ==Int #sizeWordStack(WS) andBool WSSIZE <Int 1021
        andBool G >=Int 52 *Int I +Int 21
 endmodule
 ```
