@@ -199,6 +199,11 @@ module EVM-PRIME
     rule #type(V , (V : T) ; _ ) => T
     rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
 
+    rule #type(tt, VS) => bool
+    rule #type(ff, VS) => bool
+    rule #type(B1 | B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
+    rule #type(B1 & B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
+
 
 // Variables: Declaration, Lookup, and Assignment
 // ----------------------------------------------
@@ -303,12 +308,22 @@ module EVM-PRIME
     rule #resolvePrimeOp(VS, W0 / W1) => #resolvePrimeOps(VS, W1 ; W0 ; DIV ; .OpCodes)
 
 
-// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide
-//     boolean expressions.
+// -   `tt`, `ff` are the constants for true and false in boolean expressions.
+// -   `!_` is negation, `_|_` is disjunction, and `_&_` is conjunction.
 
 
     syntax BExpOp ::= Id | "tt" | "ff"
-                    | AExpOp "=="  AExpOp
+                    | "!" BExpOp
+                    | BExpOp "|" BExpOp
+                    | BExpOp "&" BExpOp
+ // -----------------------------------
+
+
+// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide comparison
+//     operations over arithmetic expressions.
+
+
+    syntax BExpOp ::= AExpOp "=="  AExpOp
                     | AExpOp "=/=" AExpOp
                     | AExpOp "<"   AExpOp
                     | AExpOp "<="  AExpOp

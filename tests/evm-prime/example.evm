@@ -196,8 +196,11 @@ clear
 
 // -   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
 
-// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide
-//     boolean expressions.
+// -   `tt`, `ff` are the constants for true and false in boolean expressions.
+// -   `!_` is negation, `_|_` is disjunction, and `_&_` is conjunction.
+
+// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide comparison
+//     operations over arithmetic expressions.
 
 // ### Example {#example-4}
 
