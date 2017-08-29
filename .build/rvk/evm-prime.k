@@ -195,6 +195,15 @@ module EVM-PRIME
     rule  int ( N ) => intword  ( N /Int 8 ) requires N %Int 8 ==Int 0
 
 
+// -   `#type` is used for type-checking EVM-PRIME programs.
+
+
+    syntax ABIType ::= #type ( ExpOp , Vars ) [function]
+ // ----------------------------------------------------
+    rule #type(V , (V : T) ; _ ) => T
+    rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
+
+
 // Variables: Declaration, Lookup, and Assignment
 // ----------------------------------------------
 
@@ -202,7 +211,7 @@ module EVM-PRIME
 // -   `Vars` are lists of `Id` (builtin to K), separated by `;`.
 
 
-    syntax Var  ::= Id ":" ABIType
+    syntax Var  ::= "("Id ":" ABIType")"
     syntax Vars ::= List{Var, ";"}
  // ------------------------------
 
@@ -215,8 +224,8 @@ module EVM-PRIME
 
     syntax Int ::= #env ( Vars , Id ) [function]
  // --------------------------------------------
-    rule #env( ( VS ; ( V : _ ) ) , V ) => #envWidth(VS)
-    rule #env( ( VS ; ( X : _ ) ) , V ) => #env(VS, V) requires V =/=K X
+    rule #env( ( ( V : _ ) ; VS ) , V ) => #envWidth(VS)
+    rule #env( ( ( X : _ ) ; VS ) , V ) => #env(VS, V) requires V =/=K X
 
     syntax Int ::= #envWidth ( Vars ) [function]
                  | #width ( ABIType ) [function]
@@ -260,7 +269,7 @@ module EVM-PRIME
 
     syntax PrimeOp ::= Id ":=" ExpOp
  // --------------------------------
-    rule #resolvePrimeOp(VS, V := WEXP) => #resolvePrimeOps(VS, WEXP ; mstore(V) ; .OpCodes)
+    rule #resolvePrimeOp(VS, V := E) => #resolvePrimeOps(VS, E ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(E, VS)
 
 
 // ### Example {#example-3}
