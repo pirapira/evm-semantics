@@ -659,8 +659,8 @@ Deciding if an opcode is in a list will be useful for modeling gas, and converti
 Note that `_in_` ignores the arguments to operators that are parametric.
 
 ```{.k .uiuck .rvk}
-    syntax OpCodes ::= ".OpCodes" | OpCode ";" OpCodes
- // --------------------------------------------------
+    syntax OpCodes ::= ".OpCodes" | OpCode ";" OpCodes | "(" OpCodes ")" [bracket]
+ // ------------------------------------------------------------------------------
 
     syntax Map ::= #asMapOpCodes ( OpCodes )       [function]
                  | #asMapOpCodes ( Int , OpCodes ) [function, klabel(#asMapOpCodesAux)]
