@@ -6,10 +6,12 @@
 
 
 requires "evm.k"
+requires "evm-prime.k"
 requires "analysis.k"
 
 module ETHEREUM-SIMULATION
     imports EVM
+    imports EVM-PRIME
     imports EVM-ANALYSIS
 
 
@@ -226,8 +228,19 @@ module ETHEREUM-SIMULATION
     rule Rb => 5 *Int (10 ^Int 18)
 
 
-// -   `exception` only clears from the `<k>` cell if there is an exception
-//     preceding it.
+// -   `compile` will run the various compiler passes over the currently
+//     loaded program.
+
+
+    syntax EthereumCommand ::= "compile"
+ // ------------------------------------
+    rule <mode> EVMPRIME </mode> <k> compile => . ... </k>
+         <program> PGM => #asMapOpCodes(#compile(#asOpCodes(PGM))) </program>
+
+
+// -   `exception` only clears from the `k` cell if there is an exception on the
+//     `op` cell.
+>>>>>>> ethereum.md: `compile` command calls EVM-PRIME compiler
 // -   `failure_` holds the name of a test that failed if a test does fail.
 
 
