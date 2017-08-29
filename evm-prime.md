@@ -255,6 +255,15 @@ TODO (high): Explain what each different word type here means.
     rule  int ( N ) => intword  ( N /Int 8 ) requires N %Int 8 ==Int 0
 ```
 
+-   `#type` is used for type-checking EVM-PRIME programs.
+
+```{.k .uiuck .rvk}
+    syntax ABIType ::= #type ( ExpOp , Vars ) [function]
+ // ----------------------------------------------------
+    rule #type(V , (V : T) ; _ ) => T
+    rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
+```
+
 Variables: Declaration, Lookup, and Assignment
 ----------------------------------------------
 
@@ -313,7 +322,7 @@ Perhaps they should call the ABI decoding/encoding functions (respectively) so t
 ```{.k .uiuck .rvk}
     syntax PrimeOp ::= Id ":=" ExpOp
  // --------------------------------
-    rule #resolvePrimeOp(VS, V := WEXP) => #resolvePrimeOps(VS, WEXP ; mstore(V) ; .OpCodes)
+    rule #resolvePrimeOp(VS, V := EXP) => #resolvePrimeOps(VS, EXP ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(EXP, VS)
 ```
 
 ### Example
