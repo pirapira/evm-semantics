@@ -729,5 +729,8 @@ module ETHEREUM-SIMULATION
     rule check TESTID : { "uncleHeaders" : OMMERS } => check "ommerHeaders" : OMMERS ~> failure TESTID
  // --------------------------------------------------------------------------------------------------
     rule <k> check "ommerHeaders" : [ .JSONList ] => . ... </k> <ommerBlockHeaders> [ .JSONList ] </ommerBlockHeaders>
+
+    rule <k> check "program" : (PGM:OpCodes => #asMapOpCodes(PGM)) ... </k>
+    rule <k> check "program" : (PGM:Map) => . ... </k> <program> PGM </program>
 endmodule
 
