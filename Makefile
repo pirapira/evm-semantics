@@ -2,10 +2,7 @@ ifndef K_VERSION
 $(error K_VERSION not set. Please use the Build script, instead of running make directly)
 endif
 
-# Common to all versions of K
-# ===========================
-
-.PHONY: all clean build tangle defn proofs split-tests test
+.PHONY: all clean build tangle defn proofs evm-prime split-tests test
 
 all: build split-tests
 
@@ -18,16 +15,21 @@ build: tangle .build/${K_VERSION}/ethereum-kompiled/extras/timestamp
 # Tangle from *.md files
 # ----------------------
 
-tangle: defn proofs
+tangle: defn proofs evm-prime
+
+### Definition
 
 defn_dir=.build/${K_VERSION}
 defn_files=${defn_dir}/ethereum.k ${defn_dir}/data.k ${defn_dir}/evm.k ${defn_dir}/analysis.k ${defn_dir}/krypto.k ${defn_dir}/verification.k ${defn_dir}/evm-prime.k
+
 defn: $(defn_files)
 
 .build/${K_VERSION}/%.k: %.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
 	pandoc-tangle --from markdown --to code-k --code ${K_VERSION} $< > $@
+
+### Proofs
 
 proof_dir=tests/proofs
 proof_files=${proof_dir}/sum-to-n-spec.k \
@@ -54,6 +56,15 @@ tests/proofs/bad/hkg-token-buggy-spec.k: proofs/token-buggy-spec.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
 	pandoc-tangle --from markdown --to code-k --code k $< > $@
+
+### EVM-PRIME
+
+tests/evm-prime/example.evm: evm-prime.md
+	@echo "==  tangle: $@"
+	mkdir -p $(dir $@)
+	pandoc-tangle --from markdown --to code-k --code example evm-prime.md > $@
+
+evm-prime: tests/evm-prime/example.evm
 
 # Tests
 # -----
@@ -100,7 +111,7 @@ tests/ethereum-tests/%.json:
 	@echo "==  git submodule: cloning upstreams test repository"
 	git submodule update --init
 
-# UIUC K Specific
+# Building UIUC K
 # ---------------
 
 .build/uiuck/ethereum-kompiled/extras/timestamp: $(defn_files)
@@ -108,8 +119,8 @@ tests/ethereum-tests/%.json:
 	kompile --debug --main-module ETHEREUM-SIMULATION \
 					--syntax-module ETHEREUM-SIMULATION $< --directory .build/uiuck
 
-# RVK Specific
-# ------------
+# Building RV K
+# -------------
 
 .build/rvk/ethereum-kompiled/extras/timestamp: .build/rvk/ethereum-kompiled/interpreter
 .build/rvk/ethereum-kompiled/interpreter: $(defn_files) KRYPTO.ml

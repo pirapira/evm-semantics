@@ -1,0 +1,321 @@
+// EVM Prime
+// =========
+
+// In `EVMPRIME` mode, certain opcodes can be used which compile down to standard
+// EVM but provide better-behaved high-level language constructs.
+
+// -   `Vars` are lists of `Id` (builtin to K), separated by `:`.
+// -   `#env` is used to calculate the correct memory locations to access for
+//     variables given the list of currently scoped variables.
+
+// -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from
+//     `(ENV, OpCode) -> OpCodes`.
+
+// -   `#compile` will desugar `PrimeOp`s with `#resolvePrimeOps` and then resolve
+//     the jump destinations with `#resolveJumps`.
+
+// Structured Jumps
+// ----------------
+
+// Because jump destinations are not well-defined until the entire program has been
+// represented as bytecode, desugaring the `jump*` opcodes *must* be done *last*.
+
+// -   `jumpdest` allows marking a jump destination with a string (instead up
+//     relying on the program counter).
+// -   `jump` and `jumpi` allow supplying the string-labeled jump destination for
+//     jumping (instead of `PUSH`ing the destination).
+
+// -   `#resolveJumps` will replace the labeled jump destinations/jumps with their
+//     corresponding EVM code.
+// -   `#calcJumpTable` is a helper for resolving the jump table.
+
+// -   `#maxJumpPushWidth` will calculate the maximum jump address that can be used
+//     in a chunk of EVM.
+// -   `#maxOpCodesWidth` will calculate the maximum width that an EVM `OpCodes`
+//     could have after resolving jump destinations.
+
+// ### Example {#example-1}
+
+// In this example, we check that using the structured jumps desugars to the
+// correct original program.
+
+
+load "exec" : { "code" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                       ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                       ; jumpdest("loop-begin")
+                       ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                       ; ISZERO ; jumpi("end")
+                       ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                       ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                       ; jump("loop-begin")
+                       ; jumpdest("end")
+                       ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME JUMPS"
+
+clear
+
+
+// PUSH Simplification
+// -------------------
+
+// -   `push` allows not specifying the width of the constant being pushed (it will
+//     be calculated for you).
+
+// ### Example {#example-2}
+
+// In this example, we use our simpler `push` notation for avoiding specifying the
+// width of a `PUSH`.
+
+
+load "exec" : { "code" : push(0)  ; push(0)  ; MSTORE
+                       ; push(10) ; push(32) ; MSTORE
+                       ; jumpdest("loop-begin")
+                       ; push(0) ; push(32) ; MLOAD ; GT
+                       ; ISZERO ; jumpi("end")
+                       ; push(32) ; MLOAD ; push(0)  ; MLOAD ; ADD ; push(0)  ; MSTORE
+                       ; push(1)          ; push(32) ; MLOAD ; SUB ; push(32) ; MSTORE
+                       ; jump("loop-begin")
+                       ; jumpdest("end")
+                       ; push(0) ; MLOAD ; push(0) ; SSTORE
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME PUSH"
+
+clear
+
+
+// Variables: Assignment and Lookup
+// --------------------------------
+
+// -   `procedure (_) {_}` declares new variables in scope for the environment
+//     (note that new variables shadow existing ones).
+
+// -   `mload` loads variables from the `localMem` onto the `wordStack` (using the
+//     environment to determine where they are).
+// -   `mstore` stores an element from the `wordStack` from the location specified
+//     in the `localMem`.
+
+// -   Syntax `_:=_` is sugar for storing the result of an exprssion to the
+//     `localMem`.
+
+// ### Example {#example-3}
+
+// In this example, we use `procedure` to declare some variables and use them with
+// `mload` and `mstore`.
+
+
+load "exec" : { "code" : procedure(s : n)
+                            { push(0)  ; mstore(s)
+                            ; push(10) ; mstore(n)
+                            ; jumpdest("loop-begin")
+                            ; push(0) ; mload(n) ; GT
+                            ; ISZERO ; jumpi("end")
+                            ; mload(n) ; mload(s) ; ADD ; mstore(s)
+                            ; push(1)  ; mload(n) ; SUB ; mstore(n)
+                            ; jump("loop-begin")
+                            ; jumpdest("end")
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME MLOAD/MSTORE"
+
+clear
+
+
+// Expressions
+// -----------
+
+// -   `Id` is subsorted into `PrimeOp` so and is interpereted as a
+//     variable lookup.
+// -   `Int` is subsorted into `PrimeOp` and means pushing a constant.
+
+// -   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
+
+// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide
+//     boolean expressions.
+
+// ### Example {#example-4}
+
+// In this example, we use the above expression language and assignment (`_:=_`) to
+// simplify many parts of the code.
+
+
+load "exec" : { "code" : procedure(s : n)
+                            { s := 0
+                            ; n := 10
+                            ; jumpdest("loop-begin")
+                            ; n > 0
+                            ; ISZERO ; jumpi("end")
+                            ; s := s + n
+                            ; n := n - 1
+                            ; jump("loop-begin")
+                            ; jumpdest("end")
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME EXPRESSIONS"
+
+clear
+
+
+// Conditionals
+// ------------
+
+// -   `if (_) {_}` allows for conditionally executing a piece of code.
+// -   `if (_) {_} else {_}` allows for a nicer looking branching structure than
+//     writing bare EVM.
+
+// ### Example {#example-5}
+
+// In this example, we use a conditional to help with jumping back to the loop
+// head.
+
+
+load "exec" : { "code" : procedure(s : n)
+                            { s := 0
+                            ; n := 10
+                            ; jumpdest("loop-begin")
+                            ; if ( n > 0 )
+                                { s := s + n
+                                ; n := n - 1
+                                ; jump("loop-begin")
+                                ; .OpCodes
+                                }
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME IFTHEN"
+
+clear
+
+
+// While Loops
+// -----------
+
+// -   `while (_) {_}` allows for simpler construction of loops.
+
+// ### Example {#example-6}
+
+// In this example, we use a while loop instead for the entire loop (becoming a
+// highly readable program).
+
+
+load "exec" : { "code" : procedure(s : n)
+                            { s := 0
+                            ; n := 10
+                            ; while ( n > 0 )
+                                { s := s + n
+                                ; n := n - 1
+                                ; .OpCodes
+                                }
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME WHILE"
+
+clear
+
+success
+
+.EthereumSimulation
+
