@@ -364,8 +364,8 @@ Expressions
 
 ```{.k .uiuck .rvk}
     syntax PrimeOp ::= ExpOp
-    syntax ExpOp   ::= Id | Int
- // ---------------------------
+    syntax ExpOp   ::= AExpOp | BExpOp
+ // ----------------------------------
     rule #resolvePrimeOp(VS, V:Id)  => #resolvePrimeOp(VS, mload(V))
     rule #resolvePrimeOp(VS, C:Int) => push(C) ; .OpCodes
 ```
@@ -373,11 +373,12 @@ Expressions
 -   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
 
 ```{.k .uiuck .rvk}
-    syntax ExpOp ::= ExpOp "+" ExpOp
-                   | ExpOp "*" ExpOp
-                   | ExpOp "-" ExpOp
-                   | ExpOp "/" ExpOp
- // --------------------------------
+    syntax AExpOp ::= Id | Int
+                    | AExpOp "+" AExpOp
+                    | AExpOp "*" AExpOp
+                    | AExpOp "-" AExpOp
+                    | AExpOp "/" AExpOp
+ // -----------------------------------
     rule #resolvePrimeOp(VS, W0 + W1) => #resolvePrimeOps(VS, W1 ; W0 ; ADD ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 - W1) => #resolvePrimeOps(VS, W1 ; W0 ; SUB ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 * W1) => #resolvePrimeOps(VS, W1 ; W0 ; MUL ; .OpCodes)
@@ -387,13 +388,14 @@ Expressions
 -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide boolean expressions.
 
 ```{.k .uiuck .rvk}
-    syntax ExpOp ::= ExpOp "=="  ExpOp
-                   | ExpOp "=/=" ExpOp
-                   | ExpOp "<"   ExpOp
-                   | ExpOp "<="  ExpOp
-                   | ExpOp ">"   ExpOp
-                   | ExpOp ">="  ExpOp
- // ----------------------------------
+    syntax BExpOp ::= Id | "tt" | "ff"
+                    | AExpOp "=="  AExpOp
+                    | AExpOp "=/=" AExpOp
+                    | AExpOp "<"   AExpOp
+                    | AExpOp "<="  AExpOp
+                    | AExpOp ">"   AExpOp
+                    | AExpOp ">="  AExpOp
+ // -------------------------------------
     rule #resolvePrimeOp(VS, W0 ==  W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ           ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 =/= W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ ; ISZERO  ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 <   W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT           ; .OpCodes)
