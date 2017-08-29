@@ -680,8 +680,8 @@ module EVM
 // Note that `_in_` ignores the arguments to operators that are parametric.
 
 
-    syntax OpCodes ::= ".OpCodes" | OpCode ";" OpCodes
- // --------------------------------------------------
+    syntax OpCodes ::= ".OpCodes" | OpCode ";" OpCodes | "(" OpCodes ")" [bracket]
+ // ------------------------------------------------------------------------------
 
     syntax Map ::= #asMapOpCodes ( OpCodes )       [function]
                  | #asMapOpCodes ( Int , OpCodes ) [function, klabel(#asMapOpCodesAux)]
