@@ -24,19 +24,6 @@ module EVM-PRIME
     rule isCompiled ( OP ; OPS ) => (notBool isPrimeOp(OP)) andBool isCompiled(OPS)
 ```
 
--   `Vars` are lists of `Id` (builtin to K), separated by `:`.
--   `#env` is used to calculate the correct memory locations to access for variables given the list of currently scoped variables.
-
-```{.k .uiuck .rvk}
-    syntax Vars ::= List{Id, ":"}
- // -----------------------------
-
-    syntax Int ::= #env ( Vars , Id ) [function]
- // --------------------------------------------
-    rule #env( (V : _)  , V ) => 0
-    rule #env( (V : VS) , X ) => 32 +Int #env( VS , X ) requires X =/=K V
-```
-
 -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from `(ENV, OpCode) -> OpCodes`.
 
 ```{.k .uiuck .rvk}
@@ -217,16 +204,90 @@ failure "DESUGAR EVMPRIME PUSH"
 clear
 ```
 
-Variables: Assignment and Lookup
---------------------------------
+ABI Types
+---------
+
+TODO (low): Add dynamically sized types.
+
+For the type-system of EVM-PRIME, we use the types supplied in the [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).
+This means that well-typed EVM-PRIME programs generate ABI-compliant code.
+
+-   `bool` is a variable of fixed size 1 byte, restricted to values 1 and 0.
+-   `bytes(N)` is a variable of fixed size `N` bytes.
+-   `address` is a `bytes(20)`.
+-   `T[N]` is a `N` width array of type `T`.
+
+```{.k .uiuck .rvk}
+    syntax ABIType ::= "bool"
+                     | bytes ( Int ) | "address" [function]
+                     | ABIType "[" Int "]"
+ // --------------------------------------
+    rule address => bytes(20)
+```
+
+-   `ArithType` are types which may appear in arithmetic expressions.
+
+TODO (high): Explain what each different word type here means.
+
+```{.k .uiuck .rvk}
+    syntax ABIType   ::= ArithType
+    syntax ArithType ::= uintword ( Int )
+                       |  intword ( Int )
+                       | ufixed ( Int , Int )
+                       |  fixed ( Int , Int )
+                       | ufixedword ( Int , Int )
+                       |  fixedword ( Int , Int )
+ // ---------------------------------------------
+```
+
+-   `uint` and `int` desugar into `uintword` and `intword` if they have the correct bit-width.
+
+```{.k .uiuck .rvk}
+    syntax ArithType ::= uint ( Int ) [function]
+                       |  int ( Int ) [function]
+ // --------------------------------------------
+    rule uint ( N ) => uintword ( N /Int 8 ) requires N %Int 8 ==Int 0
+    rule  int ( N ) => intword  ( N /Int 8 ) requires N %Int 8 ==Int 0
+```
+
+Variables: Declaration, Lookup, and Assignment
+----------------------------------------------
+
+-   A `Var` is an `Id` with an `ABIType` (used for declaring variables).
+-   `Vars` are lists of `Id` (builtin to K), separated by `;`.
+
+```{.k .uiuck .rvk}
+    syntax Var  ::= Id ":" ABIType
+    syntax Vars ::= List{Var, ";"}
+ // ------------------------------
+```
+
+-   `#env` is used to calculate the correct memory locations to access for variables given the list of currently scoped variables.
+
+TODO (high): Add width calculations for remaining types.
+
+```{.k .uiuck .rvk}
+    syntax Int ::= #env ( Vars , Id ) [function]
+ // --------------------------------------------
+    rule #env( ( VS ; ( V : _ ) ) , V ) => #envWidth(VS)
+    rule #env( ( VS ; ( X : _ ) ) , V ) => #env(VS, V) requires V =/=K X
+
+    syntax Int ::= #envWidth ( Vars ) [function]
+                 | #width ( ABIType ) [function]
+ // --------------------------------------------
+    rule #envWidth( .Vars )        => 0
+    rule #envWidth( (_ : T) ; VS ) => #width(T) +Int #envWidth(VS)
+
+    rule #width( uintword ( N ) ) => N
+    rule #width( T [ N ] ) => #width ( T ) *Int N
+```
 
 -   `procedure (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
 
 ```{.k .uiuck .rvk}
     syntax PrimeOp ::= "procedure" "(" Vars ")" "{" OpCodes "}"
  // -----------------------------------------------------------
-    rule #resolvePrimeOp( .Vars , procedure ( IDS  ) { OPS } ) => #resolvePrimeOps( IDS , OPS )
-    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS2 : IDS1), OPS )
+    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
 ```
 
 -   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
@@ -252,7 +313,7 @@ Variables: Assignment and Lookup
 In this example, we use `procedure` to declare some variables and use them with `mload` and `mstore`.
 
 ```{.k .example}
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
                             { push(0)  ; mstore(s)
                             ; push(10) ; mstore(n)
                             ; jumpdest("loop-begin")
@@ -338,7 +399,7 @@ Expressions
 In this example, we use the above expression language and assignment (`_:=_`) to simplify many parts of the code.
 
 ```{.k .example}
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -416,7 +477,7 @@ Conditionals
 In this example, we use a conditional to help with jumping back to the loop head.
 
 ```{.k .example}
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -480,7 +541,7 @@ endmodule
 In this example, we use a while loop instead for the entire loop (becoming a highly readable program).
 
 ```{.k .example}
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; while ( n > 0 )
