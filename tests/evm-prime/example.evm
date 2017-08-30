@@ -152,7 +152,7 @@ clear
 // `mload` and `mstore`.
 
 
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) : (n : uintword(32)))
                             { push(0)  ; mstore(s)
                             ; push(10) ; mstore(n)
                             ; jumpdest("loop-begin")
@@ -205,7 +205,7 @@ clear
 // simplify many parts of the code.
 
 
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) : (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -253,7 +253,7 @@ clear
 // head.
 
 
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) : (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -299,7 +299,7 @@ clear
 // highly readable program).
 
 
-load "exec" : { "code" : procedure(s : n)
+load "exec" : { "code" : procedure((s : uintword(32)) : (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; while ( n > 0 )
