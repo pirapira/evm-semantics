@@ -25,20 +25,6 @@ module EVM-PRIME
     rule isCompiled ( OP ; OPS ) => (notBool isPrimeOp(OP)) andBool isCompiled(OPS)
 
 
-// -   `Vars` are lists of `Id` (builtin to K), separated by `:`.
-// -   `#env` is used to calculate the correct memory locations to access for
-//     variables given the list of currently scoped variables.
-
-
-    syntax Vars ::= List{Id, ":"}
- // -----------------------------
-
-    syntax Int ::= #env ( Vars , Id ) [function]
- // --------------------------------------------
-    rule #env( (V : _)  , V ) => 0
-    rule #env( (V : VS) , X ) => 32 +Int #env( VS , X ) requires X =/=K V
-
-
 // -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from
 //     `(ENV, OpCode) -> OpCodes`.
 
@@ -154,8 +140,86 @@ module EVM-PRIME
 // In this example, we use our simpler `push` notation for avoiding specifying the
 // width of a `PUSH`.
 
-// Variables: Assignment and Lookup
-// --------------------------------
+// ABI Types
+// ---------
+
+// TODO (low): Add dynamically sized types.
+
+// For the type-system of EVM-PRIME, we use the types supplied in the [Ethereum
+// Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI). This
+// means that well-typed EVM-PRIME programs generate ABI-compliant code.
+
+// -   `bool` is a variable of fixed size 1 byte, restricted to values 1 and 0.
+// -   `bytes(N)` is a variable of fixed size `N` bytes.
+// -   `address` is a `bytes(20)`.
+// -   `T[N]` is a `N` width array of type `T`.
+
+
+    syntax ABIType ::= "bool"
+                     | bytes ( Int ) | "address" [function]
+                     | ABIType "[" Int "]"
+ // --------------------------------------
+    rule address => bytes(20)
+
+
+// -   `ArithType` are types which may appear in arithmetic expressions.
+
+// TODO (high): Explain what each different word type here means.
+
+
+    syntax ABIType   ::= ArithType
+    syntax ArithType ::= uintword ( Int )
+                       |  intword ( Int )
+                       | ufixed ( Int , Int )
+                       |  fixed ( Int , Int )
+                       | ufixedword ( Int , Int )
+                       |  fixedword ( Int , Int )
+ // ---------------------------------------------
+
+
+// -   `uint` and `int` desugar into `uintword` and `intword` if they have the
+//     correct bit-width.
+
+
+    syntax ArithType ::= uint ( Int ) [function]
+                       |  int ( Int ) [function]
+ // --------------------------------------------
+    rule uint ( N ) => uintword ( N /Int 8 ) requires N %Int 8 ==Int 0
+    rule  int ( N ) => intword  ( N /Int 8 ) requires N %Int 8 ==Int 0
+
+
+// Variables: Declaration, Lookup, and Assignment
+// ----------------------------------------------
+
+// -   A `Var` is an `Id` with an `ABIType` (used for declaring variables).
+// -   `Vars` are lists of `Id` (builtin to K), separated by `;`.
+
+
+    syntax Var  ::= Id ":" ABIType
+    syntax Vars ::= List{Var, ";"}
+ // ------------------------------
+
+
+// -   `#env` is used to calculate the correct memory locations to access for
+//     variables given the list of currently scoped variables.
+
+// TODO (high): Add width calculations for remaining types.
+
+
+    syntax Int ::= #env ( Vars , Id ) [function]
+ // --------------------------------------------
+    rule #env( ( VS ; ( V : _ ) ) , V ) => #envWidth(VS)
+    rule #env( ( VS ; ( X : _ ) ) , V ) => #env(VS, V) requires V =/=K X
+
+    syntax Int ::= #envWidth ( Vars ) [function]
+                 | #width ( ABIType ) [function]
+ // --------------------------------------------
+    rule #envWidth( .Vars )        => 0
+    rule #envWidth( (_ : T) ; VS ) => #width(T) +Int #envWidth(VS)
+
+    rule #width( uintword ( N ) ) => N
+    rule #width( T [ N ] ) => #width ( T ) *Int N
+
 
 // -   `procedure (_) {_}` declares new variables in scope for the environment
 //     (note that new variables shadow existing ones).
@@ -163,8 +227,7 @@ module EVM-PRIME
 
     syntax PrimeOp ::= "procedure" "(" Vars ")" "{" OpCodes "}"
  // -----------------------------------------------------------
-    rule #resolvePrimeOp( .Vars , procedure ( IDS  ) { OPS } ) => #resolvePrimeOps( IDS , OPS )
-    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS2 : IDS1), OPS )
+    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
 
 
 // -   `mload` loads variables from the `localMem` onto the `wordStack` (using the
