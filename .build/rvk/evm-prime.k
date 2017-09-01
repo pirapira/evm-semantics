@@ -15,6 +15,9 @@ module EVM-PRIME
     imports K-REFLECTION
 
 
+// The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be
+// compiled to EVM.
+
 
     syntax OpCode ::= PrimeOp
  // -------------------------
@@ -126,6 +129,10 @@ module EVM-PRIME
 // PUSH Simplification
 // -------------------
 
+// TODO (low): Add "typed" `push`. Eg, could say `push("hello")`, and it would do
+// the sequence of word pushes necessary for that. Not sure quite what this would
+// get us, but perhaps good things long-term.
+
 // -   `push` allows not specifying the width of the constant being pushed (it will
 //     be calculated for you).
 
@@ -234,6 +241,11 @@ module EVM-PRIME
 //     environment to determine where they are).
 // -   `mstore` stores an element from the `wordStack` from the location specified
 //     in the `localMem`.
+
+// TODO (mid): `mload` and `mstore` now need to do different things based on the
+// type of the variables. Perhaps they should call the ABI decoding/encoding
+// functions (respectively) so that when we store a bunch of types to memory we
+// know it's correctly ABI packed.
 
 
     syntax PrimeOp ::= mload ( Id ) | mstore ( Id )

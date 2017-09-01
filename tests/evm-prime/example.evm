@@ -4,6 +4,9 @@
 // In `EVMPRIME` mode, certain opcodes can be used which compile down to standard
 // EVM but provide better-behaved high-level language constructs.
 
+// The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be
+// compiled to EVM.
+
 // -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from
 //     `(ENV, OpCode) -> OpCodes`.
 
@@ -71,6 +74,10 @@ clear
 // PUSH Simplification
 // -------------------
 
+// TODO (low): Add "typed" `push`. Eg, could say `push("hello")`, and it would do
+// the sequence of word pushes necessary for that. Not sure quite what this would
+// get us, but perhaps good things long-term.
+
 // -   `push` allows not specifying the width of the constant being pushed (it will
 //     be calculated for you).
 
@@ -130,6 +137,11 @@ clear
 //     environment to determine where they are).
 // -   `mstore` stores an element from the `wordStack` from the location specified
 //     in the `localMem`.
+
+// TODO (mid): `mload` and `mstore` now need to do different things based on the
+// type of the variables. Perhaps they should call the ABI decoding/encoding
+// functions (respectively) so that when we store a bunch of types to memory we
+// know it's correctly ABI packed.
 
 // -   Syntax `_:=_` is sugar for storing the result of an exprssion to the
 //     `localMem`.
