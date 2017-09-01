@@ -10,6 +10,8 @@ requires "evm.k"
 module EVM-PRIME
     imports EVM
 
+
+
     syntax OpCode ::= PrimeOp
  // -------------------------
 
@@ -233,10 +235,82 @@ module EVM-PRIME
     rule #resolvePrimeOp(VS, W0 <=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT ; ISZERO  ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 >   W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT           ; .OpCodes)
     rule #resolvePrimeOp(VS, W0 >=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT ; ISZERO  ; .OpCodes)
-endmodule
 
 
 // ### Example {#example-4}
 
 // In this example, we use the above expression language and assignment (`_:=_`) to
 // simplify many parts of the code.
+
+// Conditionals
+// ------------
+
+// -   `if (_) {_}` allows for conditionally executing a piece of code.
+// -   `if (_) {_} else {_}` allows for a nicer looking branching structure than
+//     writing bare EVM.
+
+
+    syntax PrimeOp ::= "if" "(" ExpOp ")" "{" OpCodes "}"
+ // -----------------------------------------------------
+    rule #resolvePrimeOp( IDS , if ( COND ) { THEN } )
+      =>             #resolvePrimeOp(IDS, COND)
+         ++OpCodes ( ISZERO
+                 ;   jumpi( #ifThenLabel(!LABEL:Int) +String "_end" )
+                 ; ( #resolvePrimeOps(IDS, THEN)
+         ++OpCodes ( jumpdest( #ifThenLabel(!LABEL) +String "_end" )
+                 ;   .OpCodes
+               )))
+
+    syntax PrimeOp ::= "if" "(" ExpOp ")" "then" "{" OpCodes "}" "else" "{" OpCodes "}"
+ // -----------------------------------------------------------------------------------
+    rule #resolvePrimeOp( IDS, if ( COND ) then { THEN } else { ELSE } )
+      =>             #resolvePrimeOp(IDS, COND)
+         ++OpCodes ( jumpi(#ifThenElseLabel(!LABEL:Int) +String "_true")
+                 ; ( #resolvePrimeOps(IDS, ELSE)
+         ++OpCodes ( jump(#ifThenElseLabel(!LABEL) +String "_end")
+                 ;   jumpdest(#ifThenElseLabel(!LABEL) +String "_true")
+                 ; ( #resolvePrimeOps(IDS, THEN)
+         ++OpCodes ( jumpdest(#ifThenElseLabel(!LABEL) +String "_end")
+                 ;   .OpCodes
+             )))))
+
+    syntax String ::= #ifThenLabel     ( Int ) [function]
+                    | #ifThenElseLabel ( Int ) [function]
+ // -----------------------------------------------------
+    rule #ifThenLabel( N )     => "if_then_-" +String Int2String(N)
+    rule #ifThenElseLabel( N ) => "if_then_else_-" +String Int2String(N)
+
+
+// ### Example {#example-5}
+
+// In this example, we use a conditional to help with jumping back to the loop
+// head.
+
+// While Loops
+// -----------
+
+// -   `while (_) {_}` allows for simpler construction of loops.
+
+
+    syntax PrimeOp ::= "while" "(" ExpOp ")" "{" OpCodes "}"
+ // --------------------------------------------------------
+    rule #resolvePrimeOp( IDS, while ( COND ) { BODY } )
+      =>   jumpdest( #whileLabel(!LABEL:Int) +String "_begin" )
+         ; #resolvePrimeOp( IDS
+                          , if ( COND ) {             BODY
+                                          ++OpCodes ( jump( #whileLabel(!LABEL) +String "_begin" )
+                                                    ; .OpCodes
+                                                    )
+                                        }
+                          )
+
+    syntax String ::= #whileLabel ( Int ) [function]
+ // ------------------------------------------------
+    rule #whileLabel( N ) => "while__-" +String Int2String(N)
+endmodule
+
+
+// ### Example {#example-6}
+
+// In this example, we use a while loop instead for the entire loop (becoming a
+// highly readable program).
