@@ -172,7 +172,6 @@ PUSH Simplification
     syntax PrimeOp ::= push ( Int ) [function]
  // ------------------------------------------
     rule push(N) => PUSH(#sizeWordStack(#padToWidth(1, #asByteStack(N))), N) requires N <Int pow256
-endmodule
 ```
 
 ### Example
@@ -208,6 +207,163 @@ check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
                 ; .OpCodes
 
 failure "DESUGAR EVMPRIME PUSH"
+
+clear
+```
+
+Variables: Assignment and Lookup
+--------------------------------
+
+-   `procedure (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
+
+```{.k .uiuck .rvk}
+    syntax PrimeOp ::= "procedure" "(" Vars ")" "{" OpCodes "}"
+ // -----------------------------------------------------------
+    rule #resolvePrimeOp( .Vars , procedure ( IDS  ) { OPS } ) => #resolvePrimeOps( IDS , OPS )
+    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS2 : IDS1), OPS )
+```
+
+-   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
+-   `mstore` stores an element from the `wordStack` from the location specified in the `localMem`.
+
+```{.k .uiuck .rvk}
+    syntax PrimeOp ::= mload ( Id ) | mstore ( Id )
+ // -----------------------------------------------
+    rule #resolvePrimeOp(VS, mload(V))  => push(#env(VS, V)) ; MLOAD  ; .OpCodes
+    rule #resolvePrimeOp(VS, mstore(V)) => push(#env(VS, V)) ; MSTORE ; .OpCodes
+```
+
+-   Syntax `_:=_` is sugar for storing the result of an exprssion to the `localMem`.
+
+```{.k .uiuck .rvk}
+    syntax PrimeOp ::= Id ":=" ExpOp
+ // --------------------------------
+    rule #resolvePrimeOp(VS, V := WEXP) => #resolvePrimeOps(VS, WEXP ; mstore(V) ; .OpCodes)
+```
+
+### Example
+
+In this example, we use `procedure` to declare some variables and use them with `mload` and `mstore`.
+
+```{.k .example}
+load "exec" : { "code" : procedure(s : n)
+                            { push(0)  ; mstore(s)
+                            ; push(10) ; mstore(n)
+                            ; jumpdest("loop-begin")
+                            ; push(0) ; mload(n) ; GT
+                            ; ISZERO ; jumpi("end")
+                            ; mload(n) ; mload(s) ; ADD ; mstore(s)
+                            ; push(1)  ; mload(n) ; SUB ; mstore(n)
+                            ; jump("loop-begin")
+                            ; jumpdest("end")
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME MLOAD/MSTORE"
+
+clear
+```
+
+Expressions
+-----------
+
+-   `Id` is subsorted into `PrimeOp` so and is interpereted as a variable lookup.
+-   `Int` is subsorted into `PrimeOp` and means pushing a constant.
+
+```{.k .uiuck .rvk}
+    syntax PrimeOp ::= ExpOp
+    syntax ExpOp   ::= Id | Int
+ // ---------------------------
+    rule #resolvePrimeOp(VS, V:Id)  => #resolvePrimeOp(VS, mload(V))
+    rule #resolvePrimeOp(VS, C:Int) => push(C) ; .OpCodes
+```
+
+-   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
+
+```{.k .uiuck .rvk}
+    syntax ExpOp ::= ExpOp "+" ExpOp
+                   | ExpOp "*" ExpOp
+                   | ExpOp "-" ExpOp
+                   | ExpOp "/" ExpOp
+ // --------------------------------
+    rule #resolvePrimeOp(VS, W0 + W1) => #resolvePrimeOps(VS, W1 ; W0 ; ADD ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 - W1) => #resolvePrimeOps(VS, W1 ; W0 ; SUB ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 * W1) => #resolvePrimeOps(VS, W1 ; W0 ; MUL ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 / W1) => #resolvePrimeOps(VS, W1 ; W0 ; DIV ; .OpCodes)
+```
+
+-   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide boolean expressions.
+
+```{.k .uiuck .rvk}
+    syntax ExpOp ::= ExpOp "=="  ExpOp
+                   | ExpOp "=/=" ExpOp
+                   | ExpOp "<"   ExpOp
+                   | ExpOp "<="  ExpOp
+                   | ExpOp ">"   ExpOp
+                   | ExpOp ">="  ExpOp
+ // ----------------------------------
+    rule #resolvePrimeOp(VS, W0 ==  W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ           ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 =/= W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ ; ISZERO  ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 <   W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT           ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 <=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT ; ISZERO  ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 >   W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT           ; .OpCodes)
+    rule #resolvePrimeOp(VS, W0 >=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT ; ISZERO  ; .OpCodes)
+endmodule
+```
+
+### Example
+
+In this example, we use the above expression language and assignment (`_:=_`) to simplify many parts of the code.
+
+```{.k .example}
+load "exec" : { "code" : procedure(s : n)
+                            { s := 0
+                            ; n := 10
+                            ; jumpdest("loop-begin")
+                            ; n > 0
+                            ; ISZERO ; jumpi("end")
+                            ; s := s + n
+                            ; n := n - 1
+                            ; jump("loop-begin")
+                            ; jumpdest("end")
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME EXPRESSIONS"
 
 clear
 ```
