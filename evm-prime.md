@@ -276,7 +276,7 @@ Variables: Declaration, Lookup, and Assignment
 -   `Vars` are lists of `Id` (builtin to K), separated by `;`.
 
 ```{.k .uiuck .rvk}
-    syntax Var  ::= Id ":" ABIType
+    syntax Var  ::= "("Id ":" ABIType")"
     syntax Vars ::= List{Var, ";"}
  // ------------------------------
 ```
@@ -288,8 +288,8 @@ TODO (high): Add width calculations for remaining types.
 ```{.k .uiuck .rvk}
     syntax Int ::= #env ( Vars , Id ) [function]
  // --------------------------------------------
-    rule #env( ( VS ; ( V : _ ) ) , V ) => #envWidth(VS)
-    rule #env( ( VS ; ( X : _ ) ) , V ) => #env(VS, V) requires V =/=K X
+    rule #env( ( ( V : _ ) ; VS ) , V ) => #envWidth(VS)
+    rule #env( ( ( X : _ ) ; VS ) , V ) => #env(VS, V) requires V =/=K X
 
     syntax Int ::= #envWidth ( Vars ) [function]
                  | #width ( ABIType ) [function]
@@ -327,7 +327,7 @@ Perhaps they should call the ABI decoding/encoding functions (respectively) so t
 ```{.k .uiuck .rvk}
     syntax PrimeOp ::= Id ":=" ExpOp
  // --------------------------------
-    rule #resolvePrimeOp(VS, V := EXP) => #resolvePrimeOps(VS, EXP ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(EXP, VS)
+    rule #resolvePrimeOp(VS, V := E) => #resolvePrimeOps(VS, E ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(E, VS)
 ```
 
 ### Example
