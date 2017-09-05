@@ -270,7 +270,7 @@ module EVM-PRIME
 
     syntax PrimeOp ::= Id ":=" ExpOp
  // --------------------------------
-    rule #resolvePrimeOp(VS, V := EXP) => #resolvePrimeOps(VS, EXP ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(EXP, VS)
+    rule #resolvePrimeOp(VS, V := E) => #resolvePrimeOps(VS, E ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(E, VS)
 
 
 // ### Example {#example-3}
