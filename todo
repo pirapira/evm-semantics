@@ -1,0 +1,37 @@
+-   ufixed and fixed don't desugar yet. Don't we need to add desugar for ufixed and fixed in order to talk about size?
+
+Not necessarily, could just define `#width` directly over `ufixed` and `fixed`.
+
+-   Does the twos complement number still have the same bits of memory? or N+1 bits?
+
+Twos complement number has the same number of bits in memory.
+
+-   Why does address immediately desugar? Shouldn't we keep the information that it's an address?
+
+Yeah, probably shouldn't desugar it immediately.
+This is a choice we get in building the language.
+At type-check time, if we regard `address` differently than a `bytes(20)`, then we'll basically be saying you can't add an `address` to a `bytes(N)` and store the result somewhere.
+Perhaps this is a good thing.
+
+Add these rules to the actual `evm-prime.md` file.
+We can always revert commits.
+
+```
+rule #width( intword ( N ) ) => N
+rule #width( ufixedword ( N , M ) ) => N
+rule #width( fixedword ( N , M ) ) => N
+
+rule #width( bool ) => 1 // bools have 1 byte
+rule #width( address ) => 20
+
+rule #width( bytes ( N ) ) => N
+```
+
+////////////////////////////////
+
+
+discuss mload and mstore
+
+MLOAD and MSTORE won't be deprecated anytime soon, they are fairly integral to any non-trivial programs in EVM.
+We were discussiong MSTORE8 in the meeting, which allows storing a single byte to memory at a time.
+Ideally we would remove the MSTORE8 opcode, then we would remove the restriction to fixed-width integers somehow, and then EVM+ will be glorious.

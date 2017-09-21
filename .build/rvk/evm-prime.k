@@ -176,7 +176,8 @@ module EVM-PRIME
 //     in bits.
 // -   They are immediately desugared into types ending in `word`.
 
-// TODO (high): Explain what each different word type here means.
+// TODO (high): Explain what each different word type here means and add
+// appropriate desugarings.
 
 
     syntax ABIType   ::= ArithType
