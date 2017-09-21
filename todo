@@ -12,3 +12,9 @@ rule #width( bool ) => 1 // bools have 1 byte
 rule #width( address ) => 20
 
 rule #width( bytes ( N ) ) => N
+
+
+////////////////////////////////
+
+
+discuss mload and mstore
