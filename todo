@@ -1,3 +1,7 @@
 ufixed and fixed don't desugar yet. Don't we need to add desugar for ufixed and fixed in order to talk about size?
 
+does the twos complement number still have the same bits of memory? or N+1 bits?
+
 rule #width( intword ( N ) ) => N
+rule #width( ufixedword ( N , M ) ) => N
+rule #width( fixedword ( N , M ) ) => N
