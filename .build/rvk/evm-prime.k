@@ -170,6 +170,11 @@ module EVM-PRIME
 
 
 // -   `ArithType` are types which may appear in arithmetic expressions.
+// -   Types ending in `word` are types where the integer expresses the size
+//     in bytes.
+// -   Types not ending in `word` are types where the integer expresses the size
+//     in bits.
+// -   They are immediately desugared into types ending in `word`.
 
 // TODO (high): Explain what each different word type here means.
 
