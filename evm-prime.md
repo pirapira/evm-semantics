@@ -235,7 +235,7 @@ This means that well-typed EVM-PRIME programs generate ABI-compliant code.
 -   Types not ending in `word` are types where the integer expresses the size in bits.
 -   They are immediately desugared into types ending in `word`.
 
-TODO (high): Explain what each different word type here means.
+TODO (high): Explain what each different word type here means and add appropriate desugarings.
 
 ```{.k .uiuck .rvk}
     syntax ABIType   ::= ArithType
