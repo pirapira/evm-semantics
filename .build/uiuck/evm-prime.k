@@ -243,6 +243,15 @@ module EVM-PRIME
     rule #width( uintword ( N ) ) => N
     rule #width( T [ N ] ) => #width ( T ) *Int N
 
+    rule #width( intword ( N ) ) => N
+    rule #width( ufixedword ( N , M ) ) => N
+    rule #width( fixedword ( N , M ) ) => N
+
+    rule #width( bool ) => 1 // bools have 1 byte
+    rule #width( address ) => 20
+
+    rule #width( bytes ( N ) ) => N
+
 
 // -   `procedure (_) {_}` declares new variables in scope for the environment
 //     (note that new variables shadow existing ones).
