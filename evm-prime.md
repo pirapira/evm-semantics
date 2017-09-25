@@ -164,12 +164,18 @@ PUSH Simplification
 TODO (low): Add "typed" `push`. Eg, could say `push("hello")`, and it would do the sequence of word pushes necessary for that.
 Not sure quite what this would get us, but perhaps good things long-term.
 
+TODO : byteWidth could be calculated using byte2Int up/Int 8
+
 -   `push` allows not specifying the width of the constant being pushed (it will be calculated for you).
 
 ```{.k .uiuck .rvk}
     syntax PrimeOp ::= push ( Int ) [function]
  // ------------------------------------------
     rule push(N) => PUSH(#sizeWordStack(#padToWidth(1, #asByteStack(N))), N) requires N <Int pow256
+
+    syntax Int ::= #byteWidth ( Int ) [function]
+ // --------------------------------------------
+    rule #byteWidth( I:Int ) => #sizeWordStack(#padToWidth(1, #asByteStack(I)))
 ```
 
 ### Example
@@ -266,6 +272,7 @@ TODO (high): Explain what each different word type here means and add appropriat
     rule #type(V , (V : T) ; _ ) => T
     rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
 
+    rule #type(I:Int, VS) => intword( #byteWidth )
     rule #type(tt, VS) => bool
     rule #type(ff, VS) => bool
     rule #type(B1 | B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
