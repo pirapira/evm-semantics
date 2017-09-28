@@ -211,7 +211,7 @@ module EVM-PRIME
     rule #type(V , (V : T) ; _ ) => T
     rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
 
-    rule #type(I:Int, VS) => intword( #byteWidth )
+    rule #type(I:Int, VS) => intword( #byteWidth ( I ) )
     rule #type(tt, VS) => bool
     rule #type(ff, VS) => bool
     rule #type(B1 | B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
