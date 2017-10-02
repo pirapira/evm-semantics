@@ -217,6 +217,13 @@ module EVM-PRIME
     rule #type(B1 | B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
     rule #type(B1 & B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
 
+    rule #type(A1 == A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 =/= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 < A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 <= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 > A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 >= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+
 
 // Variables: Declaration, Lookup, and Assignment
 // ----------------------------------------------
