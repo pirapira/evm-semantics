@@ -1,13 +1,11 @@
 // The Sum To N Specification file
 // ===============================
 
-// Here we provide a specification file containing two reachability rules: (1) Main
-// rule stating the functional correctness of the program, including the gas that
-// it needs; and (2) The helper circularity rule stating the functional correctness
-// of its loop and the gas it needs. Note that the program behaves
-// incorrectly/unexpectedly if arithmetic overflow occurs during its execution. One
-// challenge in verifying this program is to identify the conditions under which
-// overflow does not occur.
+// Here we provide a specification file containing two reachability rules:
+// (1) Main rule stating the functional correctness of the program, including the gas that it needs; and
+// (2) The helper circularity rule stating the functional correctness of its loop and the gas it needs.
+// Note that the program behaves incorrectly/unexpectedly if arithmetic overflow occurs during its execution.
+// One challenge in verifying this program is to identify the conditions under which overflow does not occur.
 
 
 module SUM-SPEC
@@ -17,8 +15,7 @@ module SUM-SPEC
 // Primary Claim
 // -------------
 
-// The first part of the claim is largely static (or abstracted away, like
-// `<previousGas>`).
+// The first part of the claim is largely static (or abstracted away, like `<previousGas>`).
 
 
     rule <k> #execute ... </k>
@@ -34,8 +31,7 @@ module SUM-SPEC
 // Here is the meat of the proof-claims:
 
 // -   We start at program counter 0 and end at 53.
-// -   The `<wordStack>` starts at anything sufficiently small and ends with the
-//     correct sum in the second position.
+// -   The `<wordStack>` starts at anything sufficiently small and ends with the correct sum in the second position.
 // -   The gas consumed is no more than `(52 * N) + 27` to execute this program.
 // -   `N` is sufficiently low that overflow will not occur in execution.
 
@@ -66,16 +62,12 @@ module SUM-SPEC
          <program> sumTo(N) </program>
 
 
-// Here, we are providing the behaviour of the rest of the program at any point it
-// reaches the head of the loop:
+// Here, we are providing the behaviour of the rest of the program at any point it reaches the head of the loop:
 
 // -   We start at program counter 35 and end at 53.
-// -   The `<wordStack>` starts with the current counter `I` and the partial sum
-//     `S` and ends with the correct sum in the second position.
-// -   The gas consumed from the beginning of the loop to the end is no more than
-//     `(52 * I) + 21`.
-// -   `S` and `I` are sufficiently low that overflow will not occur
-//     during execution.
+// -   The `<wordStack>` starts with the current counter `I` and the partial sum `S` and ends with the correct sum in the second position.
+// -   The gas consumed from the beginning of the loop to the end is no more than `(52 * I) + 21`.
+// -   `S` and `I` are sufficiently low that overflow will not occur during execution.
 
 
          <pc>        35         => 53                                       </pc>

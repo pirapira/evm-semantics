@@ -5,7 +5,7 @@ endif
 # Common to all versions of K
 # ===========================
 
-.PHONY: all clean build tangle defn proofs split-tests test
+.PHONY: all clean build tangle defn proofs split-tests test pandoc-tangle
 
 all: build split-tests
 
@@ -18,7 +18,16 @@ build: tangle .build/${K_VERSION}/ethereum-kompiled/extras/timestamp
 # Tangle from *.md files
 # ----------------------
 
-tangle: defn proofs
+tangle: pandoc-tangle defn proofs
+
+TANGLE = .build/pandoc-tangle/bin/pandoc-tangle
+
+pandoc-tangle: .build/pandoc-tangle/bin/timestamp
+	touch .build/pandoc-tangle/bin/timestamp
+
+.build/pandoc-tangle/bin/timestamp:
+	@echo "==  git submodule: cloning pandoc-tangle"
+	git submodule update --init -- .build/pandoc-tangle
 
 defn_dir=.build/${K_VERSION}
 defn_files=${defn_dir}/ethereum.k ${defn_dir}/data.k ${defn_dir}/evm.k ${defn_dir}/analysis.k ${defn_dir}/krypto.k ${defn_dir}/verification.k
@@ -27,7 +36,7 @@ defn: $(defn_files)
 .build/${K_VERSION}/%.k: %.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
-	pandoc-tangle --from markdown --to code-k --code ${K_VERSION} $< > $@
+	$(TANGLE) --from markdown --to code-k --code ${K_VERSION} $< > $@
 
 proof_dir=tests/proofs
 proof_files=${proof_dir}/sum-to-n-spec.k \
@@ -43,17 +52,17 @@ proofs: $(proof_files)
 tests/proofs/sum-to-n-spec.k: proofs/sum-to-n.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
-	pandoc-tangle --from markdown --to code-k --code sum-to-n $< > $@
+	$(TANGLE) --from markdown --to code-k --code sum-to-n $< > $@
 
 tests/proofs/hkg/%-spec.k: proofs/hkg.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
-	pandoc-tangle --from markdown --to code-k --code $* $< > $@
+	$(TANGLE) --from markdown --to code-k --code $* $< > $@
 
 tests/proofs/bad/hkg-token-buggy-spec.k: proofs/token-buggy-spec.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
-	pandoc-tangle --from markdown --to code-k --code k $< > $@
+	$(TANGLE) --from markdown --to code-k --code k $< > $@
 
 # Tests
 # -----
@@ -107,7 +116,7 @@ tests/%/make.timestamp: tests/ethereum-tests/%.json
 
 tests/ethereum-tests/%.json:
 	@echo "==  git submodule: cloning upstreams test repository"
-	git submodule update --init
+	git submodule update --init -- tests/ethereum-tests
 
 # UIUC K Specific
 # ---------------

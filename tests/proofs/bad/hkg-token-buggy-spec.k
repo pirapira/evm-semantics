@@ -1,8 +1,7 @@
 // Hacker Gold Token (HKG) Vulnerable Program Specification
 // ========================================================
 
-// Here we provide a specification file containing a reachability rule for the
-// verifying the correctness of the buggy HKG Token's transferFrom Function.
+// Here we provide a specification file containing a reachability rule for the verifying the correctness of the buggy HKG Token's transferFrom Function.
 
 
 module TOKEN-SPEC
