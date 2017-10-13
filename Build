@@ -209,7 +209,7 @@ run_command="$1" ; shift
 case "$run_command" in
 
     # Building
-    make-*) run_make ${run_command#make-} ;;
+    make) run_make $@ ;;
 
     # Running
     run)   run_krun   "$1" ;;
@@ -229,7 +229,7 @@ case "$run_command" in
 
        # Building
        # --------
-       $0 make-<target>     Run 'make <target>' with 'K_VERSION' set
+       $0 make <target>     Run 'make <target>' with 'K_VERSION' set
 
        Useful <target>:
        -   tangle: Build the definition/proof files from the markdown files (requires pandoc-tangle)
