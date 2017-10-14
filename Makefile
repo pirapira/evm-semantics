@@ -30,7 +30,7 @@ pandoc-tangle: .build/pandoc-tangle/bin/timestamp
 	git submodule update --init -- .build/pandoc-tangle
 
 defn_dir=.build/${K_VERSION}
-defn_files=${defn_dir}/ethereum.k ${defn_dir}/data.k ${defn_dir}/evm.k ${defn_dir}/analysis.k ${defn_dir}/krypto.k ${defn_dir}/verification.k
+defn_files=${defn_dir}/driver.k ${defn_dir}/data.k ${defn_dir}/evm.k ${defn_dir}/analysis.k ${defn_dir}/krypto.k ${defn_dir}/verification.k
 defn: $(defn_files)
 
 .build/${K_VERSION}/%.k: %.md

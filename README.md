@@ -31,7 +31,7 @@ The file [verification.md](verification.md) contains some helper-macros for writ
 
 ### Testing
 
-[ethereum.md](ethereum.md) loads test-files from the [Ethereum Test Set](https://github.com/ethereum/tests) and executes them, checking that the output is correct.
+[driver.md](driver.md) provides drivers for running Ethereum simulations, including the [Ethereum test sets](https://github.com/ethereum/tests).
 If the output is correct, the entire configuration is cleared.
 If any check fails, the configuration retains the failed check at the top of the `<k>` cell.
 
