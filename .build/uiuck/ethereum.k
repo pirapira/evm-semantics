@@ -232,12 +232,16 @@ module ETHEREUM-SIMULATION
 
 // -   `exception` only clears from the `<k>` cell if there is an exception preceding it.
 // -   `failure_` holds the name of a test that failed if a test does fail.
+// -   `success` sets the `<exit-code>` to `0` and the `<mode>` to `SUCCESS`.
 
+
+    syntax Mode ::= "SUCCESS"
+ // -------------------------
 
     syntax EthereumCommand ::= "exception" | "failure" String | "success"
  // ---------------------------------------------------------------------
     rule <k> #exception ~> exception => . ... </k>
-    rule <k> success => . ... </k> <exit-code> _ => 0 </exit-code>
+    rule <k> success => . ... </k> <exit-code> _ => 0 </exit-code> <mode> _ => SUCCESS </mode>
     rule failure _ => .
 
 
