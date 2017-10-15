@@ -1,5 +1,5 @@
 
-load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")

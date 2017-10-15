@@ -327,12 +327,12 @@ TODO (high): Add width calculations for remaining types.
     rule #width( bytes ( N ) ) => N
 ```
 
--   `procedure (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
+-   `scope (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
 
 ```{.k .uiuck .rvk}
-    syntax PrimeOp ::= "procedure" "(" Vars ")" "{" OpCodes "}"
+    syntax PrimeOp ::= "scope" "(" Vars ")" "{" OpCodes "}"
  // -----------------------------------------------------------
-    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
+    rule #resolvePrimeOp( IDS1  , scope ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
 ```
 
 -   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
@@ -358,10 +358,10 @@ Perhaps they should call the ABI decoding/encoding functions (respectively) so t
 
 ### Example
 
-In this example, we use `procedure` to declare some variables and use them with `mload` and `mstore`.
+In this example, we use `scope` to declare some variables and use them with `mload` and `mstore`.
 
 ```{.k .example}
-load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
                             { push(0)  ; mstore(s)
                             ; push(10) ; mstore(n)
                             ; jumpdest("loop-begin")
@@ -459,7 +459,7 @@ Expressions
 In this example, we use the above expression language and assignment (`_:=_`) to simplify many parts of the code.
 
 ```{.k .example}
-load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -537,7 +537,7 @@ Conditionals
 In this example, we use a conditional to help with jumping back to the loop head.
 
 ```{.k .example}
-load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; jumpdest("loop-begin")
@@ -601,7 +601,7 @@ endmodule
 In this example, we use a while loop instead for the entire loop (becoming a highly readable program).
 
 ```{.k .example}
-load "exec" : { "code" : procedure((s : uintword(32)) ; (n : uintword(32)))
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
                             { s := 0
                             ; n := 10
                             ; while ( n > 0 )

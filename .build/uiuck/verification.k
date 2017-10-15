@@ -1,9 +1,8 @@
 // KEVM Verification
 // =================
 
-// Using K's reachability logic theorem prover, we're able to verify many
-// properties about EVM programs as reachability claims. This module defines some
-// helpers which make writing specifications simpler.
+// Using K's reachability logic theorem prover, we're able to verify many properties about EVM programs as reachability claims.
+// This module defines some helpers which make writing specifications simpler.
 
 
 requires "evm.k"
@@ -21,10 +20,8 @@ module VERIFICATION
 // Sum to N
 // --------
 
-// As a demonstration of simple reachability claims involing a circularity, we
-// prove the EVM [Sum to N](proofs/sum-to-n.md) program correct. This program sums
-// the numbers from 1 to N (for sufficiently small N), including pre-conditions
-// dis-allowing integer under/overflow and stack overflow.
+// As a demonstration of simple reachability claims involing a circularity, we prove the EVM [Sum to N](proofs/sum-to-n.md) program correct.
+// This program sums the numbers from 1 to N (for sufficiently small N), including pre-conditions dis-allowing integer under/overflow and stack overflow.
 
 
     syntax Map ::= "sumTo" "(" Int ")" [function]
@@ -44,8 +41,8 @@ module VERIFICATION
 // Hacker Gold (HKG) Token Smart Contract
 // --------------------------------------
 
-// Several proofs about the [HKG Token functions](proofs/hkg.md) have been
-// performed. These helper constants make writing the proof claims simpler/cleaner.
+// Several proofs about the [HKG Token functions](proofs/hkg.md) have been performed.
+// These helper constants make writing the proof claims simpler/cleaner.
 
 
     syntax Int ::= "%ACCT_1_BALANCE" [function]

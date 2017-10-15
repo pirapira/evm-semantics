@@ -1,8 +1,7 @@
 // EVM Prime
 // =========
 
-// In `EVMPRIME` mode, certain opcodes can be used which compile down to standard
-// EVM but provide better-behaved high-level language constructs.
+// In `EVMPRIME` mode, certain opcodes can be used which compile down to standard EVM but provide better-behaved high-level language constructs.
 
 
 requires "evm.k"
@@ -11,8 +10,7 @@ module EVM-PRIME
     imports EVM
 
 
-// The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be
-// compiled to EVM.
+// The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be compiled to EVM.
 
 
     syntax OpCode ::= PrimeOp
@@ -24,8 +22,7 @@ module EVM-PRIME
     rule isCompiled ( OP ; OPS ) => (notBool isPrimeOp(OP)) andBool isCompiled(OPS)
 
 
-// -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from
-//     `(ENV, OpCode) -> OpCodes`.
+// -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from `(ENV, OpCode) -> OpCodes`.
 
 
     syntax OpCodes ::= #resolvePrimeOp  ( Vars , OpCode  ) [function]
@@ -42,8 +39,7 @@ module EVM-PRIME
     rule (OP ; OPS1) ++OpCodes OPS2 => OP ; (OPS1 ++OpCodes OPS2)
 
 
-// -   `#compile` will desugar `PrimeOp`s with `#resolvePrimeOps` and then resolve
-//     the jump destinations with `#resolveJumps`.
+// -   `#compile` will desugar `PrimeOp`s with `#resolvePrimeOps` and then resolve the jump destinations with `#resolveJumps`.
 
 
     syntax OpCodes ::= #compile ( OpCodes ) [function]
@@ -58,13 +54,10 @@ module EVM-PRIME
 // Structured Jumps
 // ----------------
 
-// Because jump destinations are not well-defined until the entire program has been
-// represented as bytecode, desugaring the `jump*` opcodes *must* be done *last*.
+// Because jump destinations are not well-defined until the entire program has been represented as bytecode, desugaring the `jump*` opcodes *must* be done *last*.
 
-// -   `jumpdest` allows marking a jump destination with a string (instead up
-//     relying on the program counter).
-// -   `jump` and `jumpi` allow supplying the string-labeled jump destination for
-//     jumping (instead of `PUSH`ing the destination).
+// -   `jumpdest` allows marking a jump destination with a string (instead up relying on the program counter).
+// -   `jump` and `jumpi` allow supplying the string-labeled jump destination for jumping (instead of `PUSH`ing the destination).
 
 
     syntax OpCode ::= JumpPrimeOp
@@ -72,8 +65,7 @@ module EVM-PRIME
  // -------------------------------------------------------------------------------
 
 
-// -   `#resolveJumps` will replace the labeled jump destinations/jumps with their
-//     corresponding EVM code.
+// -   `#resolveJumps` will replace the labeled jump destinations/jumps with their corresponding EVM code.
 // -   `#calcJumpTable` is a helper for resolving the jump table.
 
 
@@ -98,10 +90,8 @@ module EVM-PRIME
     rule #calcJumpTable( _               ; OPS , PCOUNT , MW , JT ) => #calcJumpTable(OPS, PCOUNT +Int 1,        MW, JT) [owise]
 
 
-// -   `#maxJumpPushWidth` will calculate the maximum jump address that can be used
-//     in a chunk of EVM.
-// -   `#maxOpCodesWidth` will calculate the maximum width that an EVM `OpCodes`
-//     could have after resolving jump destinations.
+// -   `#maxJumpPushWidth` will calculate the maximum jump address that can be used in a chunk of EVM.
+// -   `#maxOpCodesWidth` will calculate the maximum width that an EVM `OpCodes` could have after resolving jump destinations.
 
 
     syntax Int ::= #maxJumpPushWidth ( OpCodes ) [function]
@@ -119,20 +109,17 @@ module EVM-PRIME
 
 // ### Example {#example-1}
 
-// In this example, we check that using the structured jumps desugars to the
-// correct original program.
+// In this example, we check that using the structured jumps desugars to the correct original program.
 
 // PUSH Simplification
 // -------------------
 
-// TODO (low): Add "typed" `push`. Eg, could say `push("hello")`, and it would do
-// the sequence of word pushes necessary for that. Not sure quite what this would
-// get us, but perhaps good things long-term.
+// TODO (low): Add "typed" `push`. Eg, could say `push("hello")`, and it would do the sequence of word pushes necessary for that.
+// Not sure quite what this would get us, but perhaps good things long-term.
 
 // TODO : byteWidth could be calculated using byte2Int up/Int 8
 
-// -   `push` allows not specifying the width of the constant being pushed (it will
-//     be calculated for you).
+// -   `push` allows not specifying the width of the constant being pushed (it will be calculated for you).
 
 
     syntax PrimeOp ::= push ( Int ) [function]
@@ -146,17 +133,15 @@ module EVM-PRIME
 
 // ### Example {#example-2}
 
-// In this example, we use our simpler `push` notation for avoiding specifying the
-// width of a `PUSH`.
+// In this example, we use our simpler `push` notation for avoiding specifying the width of a `PUSH`.
 
 // ABI Types
 // ---------
 
 // TODO (low): Add dynamically sized types.
 
-// For the type-system of EVM-PRIME, we use the types supplied in the [Ethereum
-// Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI). This
-// means that well-typed EVM-PRIME programs generate ABI-compliant code.
+// For the type-system of EVM-PRIME, we use the types supplied in the [Ethereum Contract ABI](https://github.com/ethereum/wiki/wiki/Ethereum-Contract-ABI).
+// This means that well-typed EVM-PRIME programs generate ABI-compliant code.
 
 // -   `bool` is a variable of fixed size 1 byte, restricted to values 1 and 0.
 // -   `bytes(N)` is a variable of fixed size `N` bytes.
@@ -172,14 +157,11 @@ module EVM-PRIME
 
 
 // -   `ArithType` are types which may appear in arithmetic expressions.
-// -   Types ending in `word` are types where the integer expresses the size
-//     in bytes.
-// -   Types not ending in `word` are types where the integer expresses the size
-//     in bits.
+// -   Types ending in `word` are types where the integer expresses the size in bytes.
+// -   Types not ending in `word` are types where the integer expresses the size in bits.
 // -   They are immediately desugared into types ending in `word`.
 
-// TODO (high): Explain what each different word type here means and add
-// appropriate desugarings.
+// TODO (high): Explain what each different word type here means and add appropriate desugarings.
 
 
     syntax ABIType   ::= ArithType
@@ -192,8 +174,7 @@ module EVM-PRIME
  // ---------------------------------------------
 
 
-// -   `uint` and `int` desugar into `uintword` and `intword` if they have the
-//     correct bit-width.
+// -   `uint` and `int` desugar into `uintword` and `intword` if they have the correct bit-width.
 
 
     syntax ArithType ::= uint ( Int ) [function]
@@ -237,8 +218,7 @@ module EVM-PRIME
  // ------------------------------
 
 
-// -   `#env` is used to calculate the correct memory locations to access for
-//     variables given the list of currently scoped variables.
+// -   `#env` is used to calculate the correct memory locations to access for variables given the list of currently scoped variables.
 
 // TODO (high): Add width calculations for remaining types.
 
@@ -267,24 +247,19 @@ module EVM-PRIME
     rule #width( bytes ( N ) ) => N
 
 
-// -   `procedure (_) {_}` declares new variables in scope for the environment
-//     (note that new variables shadow existing ones).
+// -   `scope (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
 
 
-    syntax PrimeOp ::= "procedure" "(" Vars ")" "{" OpCodes "}"
+    syntax PrimeOp ::= "scope" "(" Vars ")" "{" OpCodes "}"
  // -----------------------------------------------------------
-    rule #resolvePrimeOp( IDS1  , procedure ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
+    rule #resolvePrimeOp( IDS1  , scope ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
 
 
-// -   `mload` loads variables from the `localMem` onto the `wordStack` (using the
-//     environment to determine where they are).
-// -   `mstore` stores an element from the `wordStack` from the location specified
-//     in the `localMem`.
+// -   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
+// -   `mstore` stores an element from the `wordStack` from the location specified in the `localMem`.
 
-// TODO (mid): `mload` and `mstore` now need to do different things based on the
-// type of the variables. Perhaps they should call the ABI decoding/encoding
-// functions (respectively) so that when we store a bunch of types to memory we
-// know it's correctly ABI packed.
+// TODO (mid): `mload` and `mstore` now need to do different things based on the type of the variables.
+// Perhaps they should call the ABI decoding/encoding functions (respectively) so that when we store a bunch of types to memory we know it's correctly ABI packed.
 
 
     syntax PrimeOp ::= mload ( Id ) | mstore ( Id )
@@ -293,8 +268,7 @@ module EVM-PRIME
     rule #resolvePrimeOp(VS, mstore(V)) => push(#env(VS, V)) ; MSTORE ; .OpCodes
 
 
-// -   Syntax `_:=_` is sugar for storing the result of an exprssion to the
-//     `localMem`.
+// -   Syntax `_:=_` is sugar for storing the result of an exprssion to the `localMem`.
 
 
     syntax PrimeOp ::= Id ":=" ExpOp
@@ -304,14 +278,12 @@ module EVM-PRIME
 
 // ### Example {#example-3}
 
-// In this example, we use `procedure` to declare some variables and use them with
-// `mload` and `mstore`.
+// In this example, we use `scope` to declare some variables and use them with `mload` and `mstore`.
 
 // Expressions
 // -----------
 
-// -   `Id` is subsorted into `PrimeOp` so and is interpereted as a
-//     variable lookup.
+// -   `Id` is subsorted into `PrimeOp` so and is interpereted as a variable lookup.
 // -   `Int` is subsorted into `PrimeOp` and means pushing a constant.
 
 
@@ -348,8 +320,7 @@ module EVM-PRIME
  // -----------------------------------
 
 
-// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide comparison
-//     operations over arithmetic expressions.
+// -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide comparison operations over arithmetic expressions.
 
 
     syntax BExpOp ::= AExpOp "=="  AExpOp
@@ -369,15 +340,13 @@ module EVM-PRIME
 
 // ### Example {#example-4}
 
-// In this example, we use the above expression language and assignment (`_:=_`) to
-// simplify many parts of the code.
+// In this example, we use the above expression language and assignment (`_:=_`) to simplify many parts of the code.
 
 // Conditionals
 // ------------
 
 // -   `if (_) {_}` allows for conditionally executing a piece of code.
-// -   `if (_) {_} else {_}` allows for a nicer looking branching structure than
-//     writing bare EVM.
+// -   `if (_) {_} else {_}` allows for a nicer looking branching structure than writing bare EVM.
 
 
     syntax PrimeOp ::= "if" "(" ExpOp ")" "{" OpCodes "}"
@@ -413,8 +382,7 @@ module EVM-PRIME
 
 // ### Example {#example-5}
 
-// In this example, we use a conditional to help with jumping back to the loop
-// head.
+// In this example, we use a conditional to help with jumping back to the loop head.
 
 // While Loops
 // -----------
@@ -442,5 +410,4 @@ endmodule
 
 // ### Example {#example-6}
 
-// In this example, we use a while loop instead for the entire loop (becoming a
-// highly readable program).
+// In this example, we use a while loop instead for the entire loop (becoming a highly readable program).
