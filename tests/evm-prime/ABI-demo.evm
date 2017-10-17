@@ -17,16 +17,16 @@ load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
 
 compile
 
-check "program" : PUSH(1, 0)  ; PUSH(1, 32)  ; MSTORE
-                ; PUSH(1, 10) ; PUSH(1, 0) ; MSTORE
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
                 ; JUMPDEST
-                ; PUSH(1, 0) ; PUSH(1, 0) ; MLOAD ; GT
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
                 ; ISZERO ; PUSH(1, 43) ; JUMPI
-                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 32)  ; MLOAD ; ADD ; PUSH(1, 32)  ; MSTORE
-                ; PUSH(1, 1)          ; PUSH(1, 0) ; MLOAD ; SUB ; PUSH(1, 0) ; MSTORE
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
                 ; PUSH(1, 10) ; JUMP
                 ; JUMPDEST
-                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
                 ; .OpCodes
 
 //failure "DESUGAR EVMPRIME EXPRESSIONS"

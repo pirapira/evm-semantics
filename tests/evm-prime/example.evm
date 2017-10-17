@@ -5,6 +5,11 @@
 
 // The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be compiled to EVM.
 
+// -   `TypedAddr` stores the address and its corresponding type.
+// -   `CompileCtx` stores the information for compiling EVM-PRIME.
+//     -   `Map` stores the variables to typed addresses mapping.
+//     -   `Int` stores the next available memory location.
+
 // -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from `(ENV, OpCode) -> OpCodes`.
 
 // -   `#compile` will desugar `PrimeOp`s with `#resolvePrimeOps` and then resolve the jump destinations with `#resolveJumps`.
@@ -118,6 +123,7 @@ clear
 // TODO (high): Add width calculations for remaining types.
 
 // -   `scope (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
+// -   `#updateScopeMap` updates the variables to typed addresses mapping for the current scope.
 
 // -   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
 // -   `mstore` stores an element from the `wordStack` from the location specified in the `localMem`.
@@ -126,6 +132,7 @@ clear
 // Perhaps they should call the ABI decoding/encoding functions (respectively) so that when we store a bunch of types to memory we know it's correctly ABI packed.
 
 // -   Syntax `_:=_` is sugar for storing the result of an exprssion to the `localMem`.
+//     TODO (mid): add type check.
 
 // ### Example {#example-3}
 
@@ -167,11 +174,45 @@ failure "DESUGAR EVMPRIME MLOAD/MSTORE"
 clear
 
 
+// Here is another example which uses nested scope and shadowing semantics.
+
+
+load "exec" : { "code" : scope((s : uintword(32)) ; (n : uintword(32)))
+                            { push(0)  ; mstore(s)
+                            ; push(10) ; mstore(n)
+                            ; mload(n) ; mload(s) ; ADD ; mstore(s)
+                            ; scope((s : uintword(32)))
+                                 { push(1)  ; mstore(s)
+                                 ; mload(n) ; mload(s) ; ADD ; mstore(s)
+                                 ; .OpCodes
+                                 }
+                            ; push(1)  ; mload(s) ; SUB ; mstore(s)
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)  ; PUSH(1, 64)  ; MSTORE
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 64)  ; MLOAD ; ADD ; PUSH(1, 64)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 0)   ; MLOAD ; SUB ; PUSH(1, 0)   ; MSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME NESTED SCOPE"
+
+clear
+
+
 // Expressions
 // -----------
 
 // -   `Id` is subsorted into `PrimeOp` so and is interpereted as a variable lookup.
 // -   `Int` is subsorted into `PrimeOp` and means pushing a constant.
+// -   `tt`, `ff` are the constants for true and false in boolean expressions.
 
 // -   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
 

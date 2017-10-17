@@ -22,16 +22,26 @@ module EVM-PRIME
     rule isCompiled ( OP ; OPS ) => (notBool isPrimeOp(OP)) andBool isCompiled(OPS)
 
 
+// -   `TypedAddr` stores the address and its corresponding type.
+// -   `CompileCtx` stores the information for compiling EVM-PRIME.
+//     -   `Map` stores the variables to typed addresses mapping.
+//     -   `Int` stores the next available memory location.
+
+
+    syntax TypedAddr ::= taddr ( ABIType , Int )
+    syntax CompileCtx ::= cctx ( Map , Int )
+
+
 // -   `#resolvePrimeOp` and `#resolvePrimeOps` operate in the monad from `(ENV, OpCode) -> OpCodes`.
 
 
-    syntax OpCodes ::= #resolvePrimeOp  ( Vars , OpCode  ) [function]
-                     | #resolvePrimeOps ( Vars , OpCodes ) [function]
- // -----------------------------------------------------------------
-    rule #resolvePrimeOp( IDS, OP ) => OP ; .OpCodes requires notBool isPrimeOp(OP)
+    syntax OpCodes ::= #resolvePrimeOp  ( CompileCtx , OpCode  ) [function]
+                     | #resolvePrimeOps ( CompileCtx , OpCodes ) [function]
+ // ------------------------------------------------------------------------------
+    rule #resolvePrimeOp( CTX , OP ) => OP ; .OpCodes requires notBool isPrimeOp(OP)
 
-    rule #resolvePrimeOps( _,   .OpCodes ) => .OpCodes
-    rule #resolvePrimeOps( IDS, OP ; OPS ) => #resolvePrimeOp(IDS, OP) ++OpCodes #resolvePrimeOps(IDS, OPS)
+    rule #resolvePrimeOps( _ , .OpCodes ) => .OpCodes
+    rule #resolvePrimeOps( CTX , OP ; OPS ) => #resolvePrimeOp(CTX , OP) ++OpCodes #resolvePrimeOps(CTX , OPS)
 
     syntax OpCodes ::= OpCodes "++OpCodes" OpCodes [function]
  // ---------------------------------------------------------
@@ -44,7 +54,7 @@ module EVM-PRIME
 
     syntax OpCodes ::= #compile ( OpCodes ) [function]
  // --------------------------------------------------
-    rule #compile(OPS) => #resolveJumps(#resolvePrimeOps(.Vars, OPS))
+    rule #compile(OPS) => #resolveJumps(#resolvePrimeOps(cctx(.Map , 0), OPS))
 
 
 // ### Example
@@ -187,23 +197,22 @@ module EVM-PRIME
 // -   `#type` is used for type-checking EVM-PRIME programs.
 
 
-    syntax ABIType ::= #type ( ExpOp , Vars ) [function]
+    syntax ABIType ::= #type ( ExpOp , CompileCtx ) [function]
  // ----------------------------------------------------
-    rule #type(V , (V : T) ; _ ) => T
-    rule #type(V , (X : _) ; VS) => #type(V, VS) requires V =/=K X
+    rule #type(V , cctx(V |-> taddr(T , _) ENV , _)) => T
 
-    rule #type(I:Int, VS) => intword( #byteWidth ( I ) )
-    rule #type(tt, VS) => bool
-    rule #type(ff, VS) => bool
-    rule #type(B1 | B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
-    rule #type(B1 & B2, VS) => bool requires #type(B1, VS) ==K bool andBool #type(B2, VS) ==K bool
+    rule #type(I:Int, CTX) => intword(#byteWidth(I))
+    rule #type(tt, CTX) => bool
+    rule #type(ff, CTX) => bool
+    rule #type(B1 | B2, CTX) => bool requires #type(B1, CTX) ==K bool andBool #type(B2, CTX) ==K bool
+    rule #type(B1 & B2, CTX) => bool requires #type(B1, CTX) ==K bool andBool #type(B2, CTX) ==K bool
 
-    rule #type(A1 == A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
-    rule #type(A1 =/= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
-    rule #type(A1 < A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
-    rule #type(A1 <= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
-    rule #type(A1 > A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
-    rule #type(A1 >= A2, VS) => bool requires #type(A1, VS) ==K #type(A2, VS)
+    rule #type(A1 == A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
+    rule #type(A1 =/= A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
+    rule #type(A1 < A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
+    rule #type(A1 <= A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
+    rule #type(A1 > A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
+    rule #type(A1 >= A2, CTX) => bool requires #type(A1, CTX) ==K #type(A2, CTX)
 
 
 // Variables: Declaration, Lookup, and Assignment
@@ -213,7 +222,7 @@ module EVM-PRIME
 // -   `Vars` are lists of `Id` (builtin to K), separated by `;`.
 
 
-    syntax Var  ::= "("Id ":" ABIType")"
+    syntax Var  ::= "(" Id ":" ABIType ")"
     syntax Vars ::= List{Var, ";"}
  // ------------------------------
 
@@ -223,19 +232,10 @@ module EVM-PRIME
 // TODO (high): Add width calculations for remaining types.
 
 
-    syntax Int ::= #env ( Vars , Id ) [function]
+    syntax Int ::= #width ( ABIType ) [function]
  // --------------------------------------------
-    rule #env( ( ( V : _ ) ; VS ) , V ) => #envWidth(VS)
-    rule #env( ( ( X : _ ) ; VS ) , V ) => #env(VS, V) requires V =/=K X
-
-    syntax Int ::= #envWidth ( Vars ) [function]
-                 | #width ( ABIType ) [function]
- // --------------------------------------------
-    rule #envWidth( .Vars )        => 0
-    rule #envWidth( (_ : T) ; VS ) => #width(T) +Int #envWidth(VS)
-
     rule #width( uintword ( N ) ) => N
-    rule #width( T [ N ] ) => #width ( T ) *Int N
+    rule #width( T [ N ] ) => #width(T) *Int N
 
     rule #width( intword ( N ) ) => N
     rule #width( ufixedword ( N , M ) ) => N
@@ -248,11 +248,17 @@ module EVM-PRIME
 
 
 // -   `scope (_) {_}` declares new variables in scope for the environment (note that new variables shadow existing ones).
+// -   `#updateScopeMap` updates the variables to typed addresses mapping for the current scope.
 
 
     syntax PrimeOp ::= "scope" "(" Vars ")" "{" OpCodes "}"
- // -----------------------------------------------------------
-    rule #resolvePrimeOp( IDS1  , scope ( IDS2 ) { OPS } ) => #resolvePrimeOps( (IDS1 ; IDS2), OPS )
+ // -------------------------------------------------------
+    rule #resolvePrimeOp( CTX , scope ( IDS2 ) { OPS } ) => #resolvePrimeOps(#updateScopeMap(CTX , IDS2) , OPS)
+
+    syntax CompileCtx ::= #updateScopeMap ( CompileCtx, Vars ) [function]
+ // ---------------------------------------------------------------------
+    rule #updateScopeMap( CTX , .Vars ) => CTX
+    rule #updateScopeMap( cctx(ENV , FREEADDR:Int) , ( V : T ) ; VS ) => #updateScopeMap(cctx(ENV [ V <- taddr(T , FREEADDR) ] , FREEADDR +Int #width(T)) , VS)
 
 
 // -   `mload` loads variables from the `localMem` onto the `wordStack` (using the environment to determine where they are).
@@ -264,78 +270,80 @@ module EVM-PRIME
 
     syntax PrimeOp ::= mload ( Id ) | mstore ( Id )
  // -----------------------------------------------
-    rule #resolvePrimeOp(VS, mload(V))  => push(#env(VS, V)) ; MLOAD  ; .OpCodes
-    rule #resolvePrimeOp(VS, mstore(V)) => push(#env(VS, V)) ; MSTORE ; .OpCodes
+    rule #resolvePrimeOp( cctx(V |-> taddr(_ , LOC) ENV , _ ) , mload(V) )  => push(LOC) ; MLOAD  ; .OpCodes
+    rule #resolvePrimeOp( cctx(V |-> taddr(_ , LOC) ENV , _ ) , mstore(V) ) => push(LOC) ; MSTORE ; .OpCodes
 
 
 // -   Syntax `_:=_` is sugar for storing the result of an exprssion to the `localMem`.
+//     TODO (mid): add type check.
 
 
     syntax PrimeOp ::= Id ":=" ExpOp
  // --------------------------------
-    rule #resolvePrimeOp(VS, V := E) => #resolvePrimeOps(VS, E ; mstore(V) ; .OpCodes) requires #type(V, VS) ==K #type(E, VS)
+    rule #resolvePrimeOp( CTX , V := E ) => #resolvePrimeOps(CTX , E ; mstore(V) ; .OpCodes)
 
 
 // ### Example {#example-3}
 
 // In this example, we use `scope` to declare some variables and use them with `mload` and `mstore`.
 
+// Here is another example which uses nested scope and shadowing semantics.
+
 // Expressions
 // -----------
 
 // -   `Id` is subsorted into `PrimeOp` so and is interpereted as a variable lookup.
 // -   `Int` is subsorted into `PrimeOp` and means pushing a constant.
+// -   `tt`, `ff` are the constants for true and false in boolean expressions.
 
 
     syntax PrimeOp ::= ExpOp
-    syntax ExpOp   ::= AExpOp | BExpOp
+    syntax ExpOp   ::= Int | "tt" | "ff" | Id
  // ----------------------------------
-    rule #resolvePrimeOp(VS, V:Id)  => #resolvePrimeOp(VS, mload(V))
-    rule #resolvePrimeOp(VS, C:Int) => push(C) ; .OpCodes
+    rule #resolvePrimeOp(CTX, V:Id)  => #resolvePrimeOp(CTX, mload(V))
+    rule #resolvePrimeOp(CTX, C:Int) => push(C) ; .OpCodes
 
 
 // -   `_+_`, `_*_`, `_-_`, and `_/_` provide integer arithmetic expressions.
 
 
-    syntax AExpOp ::= Id | Int
-                    | AExpOp "+" AExpOp
-                    | AExpOp "*" AExpOp
-                    | AExpOp "-" AExpOp
-                    | AExpOp "/" AExpOp
+    syntax ExpOp ::= ExpOp "*" ExpOp
+                   | ExpOp "/" ExpOp
+                   > ExpOp "+" ExpOp
+                   | ExpOp "-" ExpOp
  // -----------------------------------
-    rule #resolvePrimeOp(VS, W0 + W1) => #resolvePrimeOps(VS, W1 ; W0 ; ADD ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 - W1) => #resolvePrimeOps(VS, W1 ; W0 ; SUB ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 * W1) => #resolvePrimeOps(VS, W1 ; W0 ; MUL ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 / W1) => #resolvePrimeOps(VS, W1 ; W0 ; DIV ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 + W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; ADD ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 - W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; SUB ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 * W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; MUL ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 / W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; DIV ; .OpCodes)
 
 
 // -   `tt`, `ff` are the constants for true and false in boolean expressions.
 // -   `!_` is negation, `_|_` is disjunction, and `_&_` is conjunction.
 
 
-    syntax BExpOp ::= Id | "tt" | "ff"
-                    | "!" BExpOp
-                    | BExpOp "|" BExpOp
-                    | BExpOp "&" BExpOp
+    syntax ExpOp ::= "!" ExpOp
+                   | ExpOp "|" ExpOp
+                   | ExpOp "&" ExpOp
  // -----------------------------------
 
 
 // -   `_==_`, `_=/=_`, `_<_`, `_<=_`, `_>_`, and `_>=_` provide comparison operations over arithmetic expressions.
 
 
-    syntax BExpOp ::= AExpOp "=="  AExpOp
-                    | AExpOp "=/=" AExpOp
-                    | AExpOp "<"   AExpOp
-                    | AExpOp "<="  AExpOp
-                    | AExpOp ">"   AExpOp
-                    | AExpOp ">="  AExpOp
+    syntax ExpOp ::= ExpOp "=="  ExpOp
+                   | ExpOp "=/=" ExpOp
+                   | ExpOp "<"   ExpOp
+                   | ExpOp "<="  ExpOp
+                   | ExpOp ">"   ExpOp
+                   | ExpOp ">="  ExpOp
  // -------------------------------------
-    rule #resolvePrimeOp(VS, W0 ==  W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ           ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 =/= W1) => #resolvePrimeOps(VS, W1 ; W0 ; EQ ; ISZERO  ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 <   W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT           ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 <=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT ; ISZERO  ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 >   W1) => #resolvePrimeOps(VS, W1 ; W0 ; GT           ; .OpCodes)
-    rule #resolvePrimeOp(VS, W0 >=  W1) => #resolvePrimeOps(VS, W1 ; W0 ; LT ; ISZERO  ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 ==  W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; EQ           ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 =/= W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; EQ ; ISZERO  ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 <   W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; LT           ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 <=  W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; GT ; ISZERO  ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 >   W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; GT           ; .OpCodes)
+    rule #resolvePrimeOp( CTX , W0 >=  W1 ) => #resolvePrimeOps(CTX , W1 ; W0 ; LT ; ISZERO  ; .OpCodes)
 
 
 // ### Example {#example-4}
@@ -351,24 +359,24 @@ module EVM-PRIME
 
     syntax PrimeOp ::= "if" "(" ExpOp ")" "{" OpCodes "}"
  // -----------------------------------------------------
-    rule #resolvePrimeOp( IDS , if ( COND ) { THEN } )
-      =>             #resolvePrimeOp(IDS, COND)
+    rule #resolvePrimeOp( CTX , if ( COND ) { THEN } )
+      =>             #resolvePrimeOp(CTX , COND)
          ++OpCodes ( ISZERO
                  ;   jumpi( #ifThenLabel(!LABEL:Int) +String "_end" )
-                 ; ( #resolvePrimeOps(IDS, THEN)
+                 ; ( #resolvePrimeOps(CTX , THEN)
          ++OpCodes ( jumpdest( #ifThenLabel(!LABEL) +String "_end" )
                  ;   .OpCodes
                )))
 
     syntax PrimeOp ::= "if" "(" ExpOp ")" "then" "{" OpCodes "}" "else" "{" OpCodes "}"
  // -----------------------------------------------------------------------------------
-    rule #resolvePrimeOp( IDS, if ( COND ) then { THEN } else { ELSE } )
-      =>             #resolvePrimeOp(IDS, COND)
+    rule #resolvePrimeOp( CTX , if ( COND ) then { THEN } else { ELSE } )
+      =>             #resolvePrimeOp(CTX , COND)
          ++OpCodes ( jumpi(#ifThenElseLabel(!LABEL:Int) +String "_true")
-                 ; ( #resolvePrimeOps(IDS, ELSE)
+                 ; ( #resolvePrimeOps(CTX , ELSE)
          ++OpCodes ( jump(#ifThenElseLabel(!LABEL) +String "_end")
                  ;   jumpdest(#ifThenElseLabel(!LABEL) +String "_true")
-                 ; ( #resolvePrimeOps(IDS, THEN)
+                 ; ( #resolvePrimeOps(CTX , THEN)
          ++OpCodes ( jumpdest(#ifThenElseLabel(!LABEL) +String "_end")
                  ;   .OpCodes
              )))))
@@ -392,9 +400,9 @@ module EVM-PRIME
 
     syntax PrimeOp ::= "while" "(" ExpOp ")" "{" OpCodes "}"
  // --------------------------------------------------------
-    rule #resolvePrimeOp( IDS, while ( COND ) { BODY } )
+    rule #resolvePrimeOp( CTX , while ( COND ) { BODY } )
       =>   jumpdest( #whileLabel(!LABEL:Int) +String "_begin" )
-         ; #resolvePrimeOp( IDS
+         ; #resolvePrimeOp( CTX
                           , if ( COND ) {             BODY
                                           ++OpCodes ( jump( #whileLabel(!LABEL) +String "_begin" )
                                                     ; .OpCodes
