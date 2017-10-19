@@ -223,13 +223,30 @@ module ETHEREUM-SIMULATION
     rule Rb => 5 *Int (10 ^Int 18)
 
 
+// -   `compilePrimeOp` is a compiler pass to resovle all EVM-Prime ops to EVM ops.
+
+
+    syntax EthereumCommand ::= "compilePrimeOps"
+ // -------------------------------------------
+    rule <mode> EVMPRIME </mode> <k> compilePrimeOps => . ... </k>
+         <program> PGM => #asMapOpCodes(#compilePrimeOps(#asOpCodes(PGM))) </program>
+
+
+// -   `compileStructualJump` is a compiler pass to resolve structual jumps.
+
+
+    syntax EthereumCommand ::= "compileJumps"
+ // -------------------------------------------------
+    rule <mode> EVMPRIME </mode> <k> compileJumps => . ... </k>
+         <program> PGM => #asMapOpCodes(#resolveJumps(#asOpCodes(PGM))) </program>
+
+
 // -   `compile` will run the various compiler passes over the currently loaded program.
 
 
     syntax EthereumCommand ::= "compile"
  // ------------------------------------
-    rule <mode> EVMPRIME </mode> <k> compile => . ... </k>
-         <program> PGM => #asMapOpCodes(#compile(#asOpCodes(PGM))) </program>
+    rule <mode> EVMPRIME </mode> <k> compile => compilePrimeOps ~> compileJumps ... </k>
 
 
 // -   `exception` only clears from the `k` cell if there is an exception on the `op` cell.

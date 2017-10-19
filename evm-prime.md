@@ -56,9 +56,9 @@ The extra sort `PrimeOp` are op-codes which only exist in EVM-PRIME, so must be 
 -   `#compile` will desugar `PrimeOp`s with `#resolvePrimeOps` and then resolve the jump destinations with `#resolveJumps`.
 
 ```{.k .uiuck .rvk}
-    syntax OpCodes ::= #compile ( OpCodes ) [function]
+    syntax OpCodes ::= #compilePrimeOps ( OpCodes ) [function]
  // --------------------------------------------------
-    rule #compile(OPS) => #resolveJumps(#resolvePrimeOps(cctx(.Map , 0), OPS))
+    rule #compilePrimeOps(OPS) => #resolvePrimeOps(cctx(.Map , 0), OPS)
 ```
 
 ### Example
