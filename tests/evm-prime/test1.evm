@@ -1,0 +1,35 @@
+load "exec" : { "code" : scope((s : uint(32)) ; (n : uint(32)))
+                            { s := 0
+                            ; n := 10
+                            ; while ( n > 0 )
+                                { s := s + n
+                                ; n := n - 1
+                                ; .OpCodes
+                                }
+                            ; mload(s) ; push(0) ; SSTORE
+                            ; .OpCodes
+                            }
+                       ; .OpCodes
+              }
+
+compile
+
+check "program" : PUSH(1, 0)  ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 10) ; PUSH(1, 32) ; MSTORE
+                ; JUMPDEST
+                ; PUSH(1, 0) ; PUSH(1, 32) ; MLOAD ; GT
+                ; ISZERO ; PUSH(1, 43) ; JUMPI
+                ; PUSH(1, 32) ; MLOAD ; PUSH(1, 0)  ; MLOAD ; ADD ; PUSH(1, 0)  ; MSTORE
+                ; PUSH(1, 1)          ; PUSH(1, 32) ; MLOAD ; SUB ; PUSH(1, 32) ; MSTORE
+                ; PUSH(1, 10) ; JUMP
+                ; JUMPDEST
+                ; PUSH(1, 0) ; MLOAD ; PUSH(1, 0) ; SSTORE
+                ; .OpCodes
+
+failure "DESUGAR EVMPRIME WHILE"
+
+clear
+
+success
+
+.EthereumSimulation
