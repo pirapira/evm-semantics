@@ -1,3 +1,53 @@
+K Overview
+==========
+
+K Vision
+--------
+
+. . .
+
+### Language Independent PL/FM Infrastructure
+
+![K Tooling Overview](k-overview.png)
+
+K Backend
+---------
+
+. . .
+
+### Matching Logic
+
+-   Static logic for specifying program configurations.
+-   Separation Logic and Polyadic Modal Logic are both expressible as ML theories.
+
+. . .
+
+### Reachability Logic
+
+-   Language independent dynamic logic for reasoning about transition systems.
+-   Sound and relatively complete inference system.
+-   Generalizes Hoare Logic.
+
+. . .
+
+Ask me (or the other team members here) afterwards for more information.
+
+K by Example
+------------
+
+. . .
+
+### Github Repositories
+
+-   Organization: <https://github.com/kframework>
+-   KEVM Repository: <https://github.com/kframework/evm-semantics>
+-   All the languages we maintain are developed there.
+-   In repository <https://github.com/kframework/k>, directory `k-distribution/tutorial` has some example toy languages.
+
+. . .
+
+In this talk, we'll focus on the KEVM (K semantics of EVM).
+
 EVM Words
 =========
 
