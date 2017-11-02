@@ -13,6 +13,9 @@
 /.build/rvk/*
 !/.build/rvk/*.k
 
+!/.build/presentation
+/.build/presentation/presentation.pdf
+
 !/.build/secp256k1
 
 # This holds the tests that are split into one test per file from

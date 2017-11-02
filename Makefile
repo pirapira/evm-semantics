@@ -5,7 +5,7 @@ endif
 # Common to all versions of K
 # ===========================
 
-.PHONY: all clean build tangle defn proofs split-tests test
+.PHONY: all clean build tangle defn proofs presentation split-tests test
 
 all: build split-tests
 
@@ -18,7 +18,7 @@ build: tangle .build/${K_VERSION}/ethereum-kompiled/extras/timestamp
 # Tangle from *.md files
 # ----------------------
 
-tangle: defn proofs
+tangle: defn proofs presentation
 
 defn_dir=.build/${K_VERSION}
 defn_files=${defn_dir}/ethereum.k ${defn_dir}/data.k ${defn_dir}/evm.k ${defn_dir}/analysis.k ${defn_dir}/krypto.k ${defn_dir}/verification.k
@@ -54,6 +54,24 @@ tests/proofs/bad/hkg-token-buggy-spec.k: proofs/token-buggy-spec.md
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
 	pandoc-tangle --from markdown --to code-k --code k $< > $@
+
+presentation: .build/presentation/presentation.pdf
+
+.build/presentation/presentation.pdf: .build/presentation/presentation.md .build/presentation/presentation.markdown
+	@echo "== pandoc: $@"
+	mkdir -p $(dir $@)
+	cd .build/presentation \
+		&& pandoc --from markdown --to markdown --template presentation presentation.md \
+		 | pandoc --from markdown --to beamer --output presentation.pdf
+
+presentation_files=data.md evm.md Makefile
+
+.build/presentation/presentation.md: $(presentation_files)
+	@echo "==  tangle: $@"
+	mkdir -p $(dir $@)
+	pandoc-tangle --from markdown --to markdown \
+		--section '' \
+		$(presentation_files) > $@
 
 # Tests
 # -----
