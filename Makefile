@@ -64,13 +64,14 @@ presentation: .build/presentation/presentation.pdf
 		&& pandoc --from markdown --to markdown --template presentation presentation.md \
 		 | pandoc --from markdown --to beamer --output presentation.pdf
 
-presentation_files=data.md evm.md Makefile
+presentation_files=data.md evm.md proofs/sum-to-n.md Makefile
+presentation_sects='Modulo Arithmetic|Word Arithmetic|As a cons-list|WordStack Append|Single Step|Expressions|Local Memory|Account Storage Operations|Call Operations|SSTORE Gas|Csstore|Others|Schedule Constants|Default Schedule|EIP150 Schedule|Sum To N Program and Claim|Main Claim|Circularity (Loop Invariant)'
 
 .build/presentation/presentation.md: $(presentation_files)
 	@echo "==  tangle: $@"
 	mkdir -p $(dir $@)
 	pandoc-tangle --from markdown --to markdown \
-		--section '' \
+		--section $(presentation_sects) \
 		$(presentation_files) > $@
 
 # Tests

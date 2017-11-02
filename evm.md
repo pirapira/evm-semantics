@@ -1,6 +1,8 @@
 EVM Execution
 =============
 
+### Overview
+
 The EVM is a stack machine over some simple opcodes.
 Most of the opcodes are "local" to the execution state of the machine, but some of them must interact with the world state.
 This file only defines the local execution operations, the file `ethereum.md` will define the interactions with the world state.
@@ -20,7 +22,7 @@ The configuration has cells for the current account id, the current opcode, the 
 In addition, there are cells for the callstack and execution substate.
 
 We've broken up the configuration into two components; those parts of the state that mutate during execution of a single transaction and those that are static throughout.
-In the comments next to each cell, we've marked which component of the yellowpaper state corresponds to each cell.
+In the comments next to each cell, we've marked which component of the YellowPaper state corresponds to each cell.
 
 ```{.k .uiuck .rvk}
     configuration <k> $PGM:EthereumSimulation </k>
@@ -193,8 +195,10 @@ Our semantics is modal, with the initial mode being set on the command line via 
     rule <k> EX:Exception ~> (#setMode _ => .) ... </k>
 ```
 
-Hardware
---------
+State Stacks
+------------
+
+### The CallStack
 
 The `callStack` cell stores a list of previous VM execution states.
 
@@ -244,6 +248,8 @@ The `callStack` cell stores a list of previous VM execution states.
  // --------------------------------------
     rule <k> #dropCallStack => . ... </k> <callStack> (ListItem(_) => .List) ... </callStack>
 ```
+
+### The StateStack
 
 The `interimStates` cell stores a list of previous world states.
 
@@ -328,6 +334,8 @@ In the long term, a new prover will be built capable of supporting the same code
     rule <k> #dropWorldState => . ... </k> <interimStates> (ListItem(_) => .List) ... </interimStates>
 ```
 
+### The SubstateStack
+
 The `substateStack` cell stores a list of previous substate logs.
 
 -   `#pushSubstate` stores a copy of the current substate at the top of the `substateStack` cell.
@@ -352,38 +360,40 @@ The `substateStack` cell stores a list of previous substate logs.
     rule <k> #dropSubstate => .K ... </k> <substateStack> (ListItem(_) => .List) ... </substateStack>
 ```
 
-Simple commands controlling exceptions provide control-flow.
+Control Flow
+------------
 
--   `#end` is used to indicate the (non-exceptional) end of execution.
--   `#exception` is used to indicate exceptional states (it consumes any operations to be performed after it).
--   `#?_:_?#` allows for branching control-flow; if it reaches the front of the `op` cell it takes the first branch, if an exception runs into it it takes the second branch.
+### Exception Based
+
+-   `#end` indicates (non-exceptional) end of execution.
+-   `#exception` indicates exceptions (consuming opcodes until a catch).
 
 ```{.k .uiuck .rvk}
-    syntax KItem ::= Exception
+    syntax KItem     ::= Exception
     syntax Exception ::= "#exception" | "#end"
  // ------------------------------------------
     rule <k> EX:Exception ~> (_:Int    => .) ... </k>
     rule <k> EX:Exception ~> (_:OpCode => .) ... </k>
-
-    syntax KItem ::= "#?" K ":" K "?#"
- // ----------------------------------
-    rule <k>                #? K : _ ?#  => K         ... </k>
-    rule <k> #exception ~>  #? _ : K ?#  => K         ... </k>
-    rule <k> #end       ~> (#? K : _ ?#) => K ~> #end ... </k>
 ```
 
-OpCode Execution Cycle
-----------------------
-
-`OpCode` is broken into several subsorts for easier handling.
-Here all `OpCode`s are subsorted into `KItem` (allowing sequentialization), and the various sorts of opcodes are subsorted into `OpCode`.
+-   `#?_:_?#` provides an "if-then-else" (choice):
+    -   If there is no exception, take the first branch.
+    -   Else, catch exception and take the second branch.
 
 ```{.k .uiuck .rvk}
-    syntax KItem  ::= OpCode
-    syntax OpCode ::= NullStackOp | UnStackOp | BinStackOp | TernStackOp | QuadStackOp
-                    | InvalidOp | StackOp | InternalOp | CallOp | CallSixOp | PushOp
- // --------------------------------------------------------------------------------
+    syntax KItem ::= "#?" K ":" K "?#"
+ // ----------------------------------
+    rule <k>                #? B1 : _  ?#  => B1         ... </k>
+    rule <k> #exception ~>  #? _  : B2 ?#  => B2         ... </k>
+    rule <k> #end       ~> (#? B1 : _  ?#) => B1 ~> #end ... </k>
 ```
+
+OpCode Execution
+----------------
+
+. . .
+
+### Execution Macros
 
 -   `#execute` calls `#next` repeatedly until it recieves an `#end` or `#exception`.
 -   `#execTo` executes until the next opcode is one of the specified ones.
@@ -428,13 +438,23 @@ I suppose the semantics currently loads `INVALID` where `N` is the position in t
       requires notBool (PCOUNT in_keys(PGM))
 ```
 
--   In `NORMAL` or `VMTESTS` mode, `#next` checks if the opcode is exceptional, runs it if not, then increments the program counter.
+### Single Step
+
+The `#next` operator executes a single step by:
+
+1.  performing some quick checks for exceptional opcodes,
+2.  executes the opcode if it is not immediately exceptional,
+3.  increments the program counter, and finally
+4.  reverts state if any of the above steps threw an exception.
+
+. . .
 
 ```{.k .uiuck .rvk}
     rule <mode> EXECMODE </mode>
          <k> #next
-          => #pushCallStack
-          ~> #exceptional? [ OP ] ~> #exec [ OP ] ~> #pc [ OP ]
+          => #pushCallStack ~> #exceptional? [ OP ]
+                            ~> #exec         [ OP ]
+                            ~> #pc           [ OP ]
           ~> #? #dropCallStack : #popCallStack ~> #exception ?#
          ...
          </k>
@@ -443,17 +463,23 @@ I suppose the semantics currently loads `INVALID` where `N` is the position in t
       requires EXECMODE in (SetItem(NORMAL) SetItem(VMTESTS))
 ```
 
-### Exceptional OpCodes
+Exceptional OpCodes
+-------------------
 
-Some checks if an opcode will throw an exception are relatively quick and done up front.
-
--   `#exceptional?` checks if the operator is invalid and will not cause `wordStack` size issues (this implements the function `Z` in the yellowpaper, section 9.4.2).
+-   `#exceptional?` checks if the operator is invalid and will not cause `wordStack` size issues (this implements the function `Z` in the YellowPaper, section 9.4.2).
 
 ```{.k .uiuck .rvk}
     syntax InternalOp ::= "#exceptional?" "[" OpCode "]"
  // ----------------------------------------------------
-    rule <k> #exceptional? [ OP ] => #invalid? [ OP ] ~> #stackNeeded? [ OP ] ~> #badJumpDest? [ OP ] ... </k>
+    rule <k> #exceptional? [ OP ]
+          => #invalid?     [ OP ]
+          ~> #stackNeeded? [ OP ]
+          ~> #badJumpDest? [ OP ]
+         ...
+         </k>
 ```
+
+. . .
 
 -   `#invalid?` checks if it's the designated invalid opcode.
 
@@ -461,7 +487,27 @@ Some checks if an opcode will throw an exception are relatively quick and done u
     syntax InternalOp ::= "#invalid?" "[" OpCode "]"
  // ------------------------------------------------
     rule <k> #invalid? [ INVALID ] => #exception ... </k>
-    rule <k> #invalid? [ OP      ] => .          ... </k> requires notBool isInvalidOp(OP)
+    rule <k> #invalid? [ OP      ] => .          ... </k>
+      requires OP =/=K INVALID
+```
+
+End Exceptional OpCodes
+-----------------------
+
+-   `#badJumpDest?` determines if the opcode will result in a bad jump destination.
+
+```{.k .uiuck .rvk}
+    syntax InternalOp ::= "#badJumpDest?" "[" OpCode "]"
+ // ----------------------------------------------------
+    rule <k> #badJumpDest? [ OP    ] => . ... </k> requires notBool isJumpOp(OP)
+    rule <k> #badJumpDest? [ OP    ] => . ... </k> <wordStack> DEST  : WS </wordStack> <program> ... DEST |-> JUMPDEST ... </program> requires isJumpOp(OP)
+    rule <k> #badJumpDest? [ JUMPI ] => . ... </k> <wordStack> _ : 0 : WS </wordStack>
+
+    rule <k> #badJumpDest? [ JUMP  ] => #exception ... </k> <wordStack> DEST :     WS </wordStack> <program> ... DEST |-> OP ... </program> requires OP =/=K JUMPDEST
+    rule <k> #badJumpDest? [ JUMPI ] => #exception ... </k> <wordStack> DEST : W : WS </wordStack> <program> ... DEST |-> OP ... </program> requires OP =/=K JUMPDEST andBool W =/=K 0
+
+    rule <k> #badJumpDest? [ JUMP  ] => #exception ... </k> <wordStack> DEST :     WS </wordStack> <program> PGM </program> requires notBool (DEST in_keys(PGM))
+    rule <k> #badJumpDest? [ JUMPI ] => #exception ... </k> <wordStack> DEST : W : WS </wordStack> <program> PGM </program> requires (notBool (DEST in_keys(PGM))) andBool W =/=K 0
 ```
 
 -   `#stackNeeded?` checks that the stack will be not be under/overflown.
@@ -520,21 +566,8 @@ Some checks if an opcode will throw an exception are relatively quick and done u
     rule #stackDelta(OP) => #stackAdded(OP) -Int #stackNeeded(OP)
 ```
 
--   `#badJumpDest?` determines if the opcode will result in a bad jump destination.
-
-```{.k .uiuck .rvk}
-    syntax InternalOp ::= "#badJumpDest?" "[" OpCode "]"
- // ----------------------------------------------------
-    rule <k> #badJumpDest? [ OP    ] => . ... </k> requires notBool isJumpOp(OP)
-    rule <k> #badJumpDest? [ OP    ] => . ... </k> <wordStack> DEST  : WS </wordStack> <program> ... DEST |-> JUMPDEST ... </program> requires isJumpOp(OP)
-    rule <k> #badJumpDest? [ JUMPI ] => . ... </k> <wordStack> _ : 0 : WS </wordStack>
-
-    rule <k> #badJumpDest? [ JUMP  ] => #exception ... </k> <wordStack> DEST :     WS </wordStack> <program> ... DEST |-> OP ... </program> requires OP =/=K JUMPDEST
-    rule <k> #badJumpDest? [ JUMPI ] => #exception ... </k> <wordStack> DEST : W : WS </wordStack> <program> ... DEST |-> OP ... </program> requires OP =/=K JUMPDEST andBool W =/=K 0
-
-    rule <k> #badJumpDest? [ JUMP  ] => #exception ... </k> <wordStack> DEST :     WS </wordStack> <program> PGM </program> requires notBool (DEST in_keys(PGM))
-    rule <k> #badJumpDest? [ JUMPI ] => #exception ... </k> <wordStack> DEST : W : WS </wordStack> <program> PGM </program> requires (notBool (DEST in_keys(PGM))) andBool W =/=K 0
-```
+Execution
+=========
 
 ### Execution Step
 
@@ -546,27 +579,49 @@ Some checks if an opcode will throw an exception are relatively quick and done u
     rule <k> #exec [ OP ] => #gas [ OP ] ~> OP ... </k> requires isInternalOp(OP) orBool isNullStackOp(OP) orBool isPushOp(OP)
 ```
 
-Here we load the correct number of arguments from the `wordStack` based on the sort of the opcode.
-Some of them require an argument to be interpereted as an address (modulo 160 bits), so the `#addr?` function performs that check.
+Argument Loading
+----------------
+
+. . .
+
+### OpCode Subsorts
+
+Sort `OpCode` is broken into several subsorts for easier handling.
 
 ```{.k .uiuck .rvk}
-    syntax InternalOp ::= UnStackOp Int
-                        | BinStackOp Int Int
-                        | TernStackOp Int Int Int
+    syntax KItem  ::= OpCode
+    syntax OpCode ::= NullStackOp | UnStackOp | BinStackOp
+ // ------------------------------------------------------
+```
+
+. . .
+
+### Arity-based Argument Loading
+
+Based on the sort of an opcode, we load the correct number of arguments:
+
+```{.k .uiuck .rvk}
+    syntax InternalOp ::= UnStackOp Int | BinStackOp Int Int
+ // --------------------------------------------------------
+    rule <k> #exec [ UOP:UnStackOp => UOP #addr?(UOP, W0) ] ... </k>
+         <wordStack> W0 : WS => WS </wordStack>
+
+    rule <k> #exec [ BOP:BinStackOp => BOP #addr?(BOP, W0) W1 ] ... </k>
+         <wordStack> W0 : W1 : WS => WS </wordStack>
+```
+
+### Remaining `OpCode` Subsorts
+
+```{.k .uiuck .rvk}
+    syntax OpCode ::= StackOp | CallOp    | CallSixOp
+                    | PushOp  | InvalidOp | InternalOp
+ // --------------------------------------------------
+
+    syntax InternalOp ::= TernStackOp Int Int Int
                         | QuadStackOp Int Int Int Int
  // -------------------------------------------------
-    rule <k> #exec [ UOP:UnStackOp   => UOP #addr?(UOP, W0)          ] ... </k> <wordStack> W0 : WS                => WS </wordStack>
-    rule <k> #exec [ BOP:BinStackOp  => BOP #addr?(BOP, W0) W1       ] ... </k> <wordStack> W0 : W1 : WS           => WS </wordStack>
     rule <k> #exec [ TOP:TernStackOp => TOP #addr?(TOP, W0) W1 W2    ] ... </k> <wordStack> W0 : W1 : W2 : WS      => WS </wordStack>
     rule <k> #exec [ QOP:QuadStackOp => QOP #addr?(QOP, W0) W1 W2 W3 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : WS => WS </wordStack>
-
-    syntax Int ::= "#addr?" "(" OpCode "," Int ")" [function]
- // ---------------------------------------------------------
-    rule #addr?(BALANCE,      W) => #addr(W)
-    rule #addr?(EXTCODESIZE,  W) => #addr(W)
-    rule #addr?(EXTCODECOPY,  W) => #addr(W)
-    rule #addr?(SELFDESTRUCT, W) => #addr(W)
-    rule #addr?(OP, W)           => W        requires (OP =/=K BALANCE) andBool (OP =/=K EXTCODESIZE) andBool (OP =/=K EXTCODECOPY) andBool (OP =/=K SELFDESTRUCT)
 ```
 
 `StackOp` is used for opcodes which require a large portion of the stack.
@@ -587,9 +642,20 @@ The `CallOp` opcodes all interperet their second argument as an address.
     rule <k> #exec [ CO:CallOp     => CO  W0 #addr(W1) W2 W3 W4 W5 W6 ] ... </k> <wordStack> W0 : W1 : W2 : W3 : W4 : W5 : W6 : WS => WS </wordStack>
 ```
 
+### Helpers
+
+-   `#addr` decides if the given argument should be interpreted as an address (given the opcode).
 -   `#gas` calculates how much gas this operation costs, and takes into account the memory consumed.
 
 ```{.k .uiuck .rvk}
+    syntax Int ::= "#addr?" "(" OpCode "," Int ")" [function]
+ // ---------------------------------------------------------
+    rule #addr?(BALANCE,      W) => #addr(W)
+    rule #addr?(EXTCODESIZE,  W) => #addr(W)
+    rule #addr?(EXTCODECOPY,  W) => #addr(W)
+    rule #addr?(SELFDESTRUCT, W) => #addr(W)
+    rule #addr?(OP, W)           => W        requires (OP =/=K BALANCE) andBool (OP =/=K EXTCODESIZE) andBool (OP =/=K EXTCODECOPY) andBool (OP =/=K SELFDESTRUCT)
+
     syntax InternalOp ::= "#gas" "[" OpCode "]" | "#deductGas" | "#deductMemory"
  // ----------------------------------------------------------------------------
     rule <k> #gas [ OP ] => #memory(OP, MU) ~> #deductMemory ~> #gasExec(SCHED, OP) ~> #deductGas ... </k> <memoryUsed> MU </memoryUsed> <schedule> SCHED </schedule>
@@ -628,7 +694,7 @@ The arguments to `PUSH` must be skipped over (as they are inline), and the opcod
 
 ### Substate Log
 
-During execution of a transaction some things are recorded in the substate log (Section 6.1 in yellowpaper).
+During execution of a transaction some things are recorded in the substate log (Section 6.1 in YellowPaper).
 This is a right cons-list of `SubstateLogEntry` (which contains the account ID along with the specified portions of the `wordStack` and `localMem`).
 
 ```{.k .uiuck .rvk}
@@ -737,15 +803,18 @@ After executing a transaction, it's necessary to have the effect of the substate
 EVM Programs
 ============
 
-Lists of opcodes form programs.
-Deciding if an opcode is in a list will be useful for modeling gas, and converting a program into a map of program-counter to opcode is useful for execution.
+### Program Structure
 
-Note that `_in_` ignores the arguments to operators that are parametric.
+Lists of opcodes form programs.
 
 ```{.k .uiuck .rvk}
     syntax OpCodes ::= ".OpCodes" | OpCode ";" OpCodes
  // --------------------------------------------------
+```
 
+### Converting to/from `Map` Representation
+
+```{.k .uiuck .rvk}
     syntax Map ::= #asMapOpCodes ( OpCodes )             [function]
                  | #asMapOpCodes ( Int , OpCodes , Map ) [function, klabel(#asMapOpCodesAux)]
  // -----------------------------------------------------------------------------------------
@@ -768,9 +837,7 @@ Note that `_in_` ignores the arguments to operators that are parametric.
 EVM OpCodes
 -----------
 
-Each subsection has a different class of opcodes.
-Organization is based roughly on what parts of the execution state are needed to compute the result of each operator.
-This sometimes corresponds to the organization in the yellowpaper.
+. . .
 
 ### Internal Operations
 
@@ -898,44 +965,34 @@ Some operators don't calculate anything, they just push the stack around a bit.
     rule <k> PUSH(_, W) => W ~> #push ... </k>
 ```
 
-### Local Memory
-
-These operations are getters/setters of the local execution memory.
-
-```{.k .uiuck .rvk}
-    syntax UnStackOp ::= "MLOAD"
- // ----------------------------
-    rule <k> MLOAD INDEX => #asWord(#range(LM, INDEX, 32)) ~> #push ... </k>
-         <localMem> LM </localMem>
-
-    syntax BinStackOp ::= "MSTORE" | "MSTORE8"
- // ------------------------------------------
-    rule <k> MSTORE INDEX VALUE => . ... </k>
-         <localMem> LM => LM [ INDEX := #padToWidth(32, #asByteStack(VALUE)) ] </localMem>
-
-    rule <k> MSTORE8 INDEX VALUE => . ... </k>
-         <localMem> LM => LM [ INDEX <- (VALUE %Int 256) ]    </localMem>
-```
-
 ### Expressions
 
-Expression calculations are simple and don't require anything but the arguments from the `wordStack` to operate.
+Expression opcodes call the corresponding `<op>Word` operators, then `#push` the result:
+
+```{.k .uiuck .rvk}
+    syntax BinStackOp ::= "SUB" | "DIV"
+ // -----------------------------------
+    rule <k> SUB W0 W1 => W0 -Word W1 ~> #push ... </k>
+    rule <k> DIV W0 W1 => W0 /Word W1 ~> #push ... </k>
+```
+
+. . .
+
+### End Expressions
 
 NOTE: We have to call the opcode `OR` by `EVMOR` instead, because K has trouble parsing it/compiling the definition otherwise.
 
-```{.k .uiuck .rvk}
+```{.k .uiuc .rvk}
     syntax UnStackOp ::= "ISZERO" | "NOT"
  // -------------------------------------
     rule <k> ISZERO 0 => 1        ~> #push ... </k>
     rule <k> ISZERO W => 0        ~> #push ... </k> requires W =/=K 0
     rule <k> NOT    W => ~Word W  ~> #push ... </k>
 
-    syntax BinStackOp ::= "ADD" | "MUL" | "SUB" | "DIV" | "EXP" | "MOD"
- // -------------------------------------------------------------------
+    syntax BinStackOp ::= "ADD" | "MUL" | "EXP" | "MOD"
+ // ---------------------------------------------------
     rule <k> ADD W0 W1 => W0 +Word W1 ~> #push ... </k>
     rule <k> MUL W0 W1 => W0 *Word W1 ~> #push ... </k>
-    rule <k> SUB W0 W1 => W0 -Word W1 ~> #push ... </k>
-    rule <k> DIV W0 W1 => W0 /Word W1 ~> #push ... </k>
     rule <k> EXP W0 W1 => W0 ^Word W1 ~> #push ... </k>
     rule <k> MOD W0 W1 => W0 %Word W1 ~> #push ... </k>
 
@@ -978,6 +1035,30 @@ NOTE: We have to call the opcode `OR` by `EVMOR` instead, because K has trouble 
  // ----------------------------
     rule <k> SHA3 MEMSTART MEMWIDTH => keccak(#range(LM, MEMSTART, MEMWIDTH)) ~> #push ... </k>
          <localMem> LM </localMem>
+```
+
+### Local Memory
+
+```{.k .uiuck .rvk}
+    syntax UnStackOp ::= "MLOAD"
+ // ----------------------------
+    rule <k> MLOAD INDEX => #asWord(#range(LM, INDEX, 32)) ~> #push ... </k>
+         <localMem> LM </localMem>
+
+    syntax BinStackOp ::= "MSTORE"
+ // ------------------------------
+    rule <k> MSTORE I V => . ... </k>
+         <localMem> LM => LM [ I := #padToWidth(32, #asByteStack(V)) ]
+         </localMem>
+```
+
+### End Local Memory
+
+```{.k .uiuck .rvk}
+    syntax BinStackOp ::= "MSTORE8"
+ // -------------------------------
+    rule <k> MSTORE8 INDEX VALUE => . ... </k>
+         <localMem> LM => LM [ INDEX <- (VALUE %Int 256) ]    </localMem>
 ```
 
 ### Local State
@@ -1032,7 +1113,10 @@ These operators make queries about the current execution state.
     rule #blockhash(ListItem(_) L, N, HI, A) => #blockhash(L, N, HI -Int 1, A +Int 1) [owise]
 ```
 
-### `JUMP*`
+EVM OpCodes
+-----------
+
+### EVM Control Flow
 
 The `JUMP*` family of operations affect the current program counter.
 
@@ -1044,11 +1128,16 @@ The `JUMP*` family of operations affect the current program counter.
     syntax UnStackOp ::= "JUMP"
  // ---------------------------
     rule <k> JUMP DEST => . ... </k> <pc> _ => DEST </pc>
+```
 
+### Conditional Jump
+
+```{.k .uiuck .rvk}
     syntax BinStackOp ::= "JUMPI"
  // -----------------------------
-    rule <k> JUMPI DEST I => . ... </k> <pc> _      => DEST          </pc> requires I =/=K 0
     rule <k> JUMPI DEST 0 => . ... </k> <pc> PCOUNT => PCOUNT +Int 1 </pc>
+    rule <k> JUMPI DEST I => . ... </k> <pc> _      => DEST          </pc>
+      requires I =/=K 0
 ```
 
 ### `STOP` and `RETURN`
@@ -1105,7 +1194,7 @@ These operators query about the current `CALL*` state.
 Ethereum Network OpCodes
 ------------------------
 
-Operators that require access to the rest of the Ethereum network world-state can be taken as a first draft of a "blockchain generic" language.
+. . .
 
 ### Account Queries
 
@@ -1162,11 +1251,36 @@ Should we pad zeros (for the copied "program")?
 
 ### Account Storage Operations
 
-These operations interact with the account storage.
+These rules reach into the network state and load/store from account storage:
 
 ```{.k .uiuck .rvk}
     syntax UnStackOp ::= "SLOAD"
  // ----------------------------
+    rule <k> SLOAD INDEX => VALUE ~> #push ... </k> <id> ACCT </id>
+         <account>
+           <acctID> ACCT </acctID>
+           <storage> ... INDEX |-> VALUE ... </storage>
+           ...
+         </account>
+```
+
+. . .
+
+```{.k .uiuck .rvk}
+    syntax BinStackOp ::= "SSTORE"
+ // ------------------------------
+    rule <k> SSTORE INDEX VALUE => . ... </k> <id> ACCT </id>
+         <account>
+           <acctID> ACCT </acctID>
+           <storage> STORAGE => STORAGE [ INDEX <- VALUE ] </storage>
+           ...
+         </account>
+      requires notBool (INDEX in_keys(STORAGE))
+```
+
+### End Account Storage Operations
+
+```{.k .uiuck .rvk}
     rule <k> SLOAD INDEX => 0 ~> #push ... </k>
          <id> ACCT </id>
          <account>
@@ -1174,14 +1288,6 @@ These operations interact with the account storage.
            <storage> STORAGE </storage>
            ...
          </account> requires notBool INDEX in_keys(STORAGE)
-
-    rule <k> SLOAD INDEX => VALUE ~> #push ... </k>
-         <id> ACCT </id>
-         <account>
-           <acctID> ACCT </acctID>
-           <storage> ... INDEX |-> VALUE ... </storage>
-           ...
-         </account>
 
     syntax BinStackOp ::= "SSTORE"
  // ------------------------------
@@ -1198,18 +1304,7 @@ These operations interact with the account storage.
                        #fi
          </refund>
          <schedule> SCHED </schedule>
-
-    rule <k> SSTORE INDEX VALUE => . ... </k>
-         <id> ACCT </id>
-         <account>
-           <acctID> ACCT </acctID>
-           <storage> STORAGE => STORAGE [ INDEX <- VALUE ] </storage>
-           ...
-         </account>
-      requires notBool (INDEX in_keys(STORAGE))
 ```
-
-### Call Operations
 
 The various `CALL*` (and other inter-contract control flow) operations will be desugared into these `InternalOp`s.
 
@@ -1326,6 +1421,13 @@ The various `CALL*` (and other inter-contract control flow) operations will be d
          <localMem> LM => LM [ START := #take(minInt(WIDTH, #sizeWordStack(WS)), WS) ] </localMem>
 ```
 
+Ethereum Network OpCodes
+------------------------
+
+. . .
+
+### Call Operations
+
 For each `CALL*` operation, we make a corresponding call to `#call` and a state-change to setup the custom parts of the calling environment.
 
 ```{.k .uiuck .rvk}
@@ -1342,7 +1444,11 @@ For each `CALL*` operation, we make a corresponding call to `#call` and a state-
          <localMem> LM </localMem>
          <activeAccounts> ACCTS </activeAccounts>
          <previousGas> GAVAIL </previousGas>
+```
 
+### End Call Operations
+
+```{.k .uiuck .rvk}
     syntax CallOp ::= "CALLCODE"
  // ----------------------------
     rule <k> CALLCODE GCAP ACCTTO VALUE ARGSTART ARGWIDTH RETSTART RETWIDTH
@@ -1595,17 +1701,14 @@ Precompiled Contracts
 Ethereum Gas Calculation
 ========================
 
-The gas calculation is designed to mirror the style of the yellowpaper.
-Gas is consumed either by increasing the amount of memory being used, or by executing opcodes.
-
 Memory Consumption
 ------------------
 
 Memory consumed is tracked to determine the appropriate amount of gas to charge for each operation.
-In the yellowpaper, each opcode is defined to consume zero gas unless specified otherwise next to the semantics of the opcode (appendix H).
+In the YellowPaper, each opcode is defined to consume zero gas unless specified otherwise next to the semantics of the opcode (appendix H).
 
 -   `#memory` computes the new memory size given the old size and next operator (with its arguments).
--   `#memoryUsageUpdate` is the function `M` in appendix H of the yellowpaper which helps track the memory used.
+-   `#memoryUsageUpdate` is the function `M` in appendix H of the YellowPaper which helps track the memory used.
 
 ```{.k .uiuck .rvk}
     syntax Int ::= #memory ( OpCode , Int ) [function]
@@ -1702,21 +1805,30 @@ Grumble grumble, K sucks at `owise`.
 Execution Gas
 -------------
 
-Each opcode has an intrinsic gas cost of execution as well (appendix H of the yellowpaper).
+The intrinsic gas calculation mirrors the style of the YellowPaper (appendix H).
 
--   `#gasExec` loads all the relevant surronding state and uses that to compute the intrinsic execution gas of each opcode.
+. . .
+
+### SSTORE Gas
 
 ```{.k .uiuck .rvk}
     syntax InternalOp ::= #gasExec ( Schedule , OpCode )
  // ----------------------------------------------------
-    rule <k> #gasExec(SCHED, SSTORE INDEX VALUE) => Csstore(SCHED, VALUE, #lookup(STORAGE, INDEX)) ... </k>
+    rule <k> #gasExec(SCHED, SSTORE INDEX VALUE)
+          => Csstore(SCHED, VALUE, #lookup(STORAGE, INDEX))
+         ...
+         </k>
          <id> ACCT </id>
          <account>
            <acctID> ACCT </acctID>
            <storage> STORAGE </storage>
            ...
          </account>
+```
 
+### End SSTORE Gas
+
+```{.k .uiuck .rvk}
     rule <k> #gasExec(SCHED, EXP W0 0)  => Gexp < SCHED > ... </k>
     rule <k> #gasExec(SCHED, EXP W0 W1) => Gexp < SCHED > +Int (Gexpbyte < SCHED > *Int (1 +Int (log256Int(W1)))) ... </k> requires W1 =/=K 0
 
@@ -1827,22 +1939,44 @@ Each opcode has an intrinsic gas cost of execution as well (appendix H of the ye
     rule <k> #gasExec(_, ID)     =>  15 +Int   3 *Int (#sizeWordStack(DATA) up/Int 32) ... </k> <callData> DATA </callData>
 ```
 
-There are several helpers for calculating gas (most of them also specified in the yellowpaper).
+There are several helpers for calculating gas (most of them also specified in the YellowPaper).
 
 Note: These are all functions as the operator `#gasExec` has already loaded all the relevant state.
+
+Gas Calculation Functions
+-------------------------
+
+The following functions are defined in the YellowPaper.
+
+### Csstore
 
 ```{.k .uiuck .rvk}
     syntax Int ::= Csstore ( Schedule , Int , Int ) [function]
  // ----------------------------------------------------------
-    rule Csstore(SCHED, VALUE, OLD) => #ifInt VALUE =/=Int 0 andBool OLD ==Int 0 #then Gsstoreset < SCHED > #else Gsstorereset < SCHED > #fi
+    rule Csstore(SCHED, VALUE, OLD)
+      => #ifInt VALUE =/=Int 0 andBool OLD ==Int 0
+            #then Gsstoreset   < SCHED >
+            #else Gsstorereset < SCHED >
+         #fi
+```
 
-    syntax Int ::= Ccall    ( Schedule , Int , Map , Int , Int , Int ) [function]
-                 | Ccallgas ( Schedule , Int , Map , Int , Int , Int ) [function]
-                 | Cgascap  ( Schedule , Int , Int , Int )             [function]
-                 | Cextra   ( Schedule , Int , Map , Int )             [function]
-                 | Cxfer    ( Schedule , Int )                         [function]
-                 | Cnew     ( Schedule , Int , Map , Int )             [function]
- // -----------------------------------------------------------------------------
+. . .
+
+### Others
+
+```{.k .uiuck .rvk}
+    syntax Int ::= Ccall    (Schedule, Int, Map, Int, Int, Int) [function]
+                 | Ccallgas (Schedule, Int, Map, Int, Int, Int) [function]
+                 | Cgascap  (Schedule, Int, Int, Int)           [function]
+                 | Cextra   (Schedule, Int, Map, Int)           [function]
+                 | Cxfer    (Schedule, Int)                     [function]
+                 | Cnew     (Schedule, Int, Map, Int)           [function]
+ // ----------------------------------------------------------------------
+```
+
+### End Csstore
+
+```{.k .uiuck .rvk}
     rule Ccall(SCHED, ACCT, ACCTS, GCAP, GAVAIL, VALUE) => Cextra(SCHED, ACCT, ACCTS, VALUE) +Int Cgascap(SCHED, GCAP, GAVAIL, Cextra(SCHED, ACCT, ACCTS, VALUE))
 
     rule Ccallgas(SCHED, ACCT, ACCTS, GCAP, GAVAIL, 0)     => Cgascap(SCHED, GCAP, GAVAIL, Cextra(SCHED, ACCT, ACCTS,     0))
@@ -1896,8 +2030,12 @@ Note: These are all functions as the operator `#gasExec` has already loaded all 
 Fee Schedule from C++ Implementation
 ------------------------------------
 
+. . .
+
+### From the C++ Implementation
+
 The [C++ Implementation of EVM](https://github.com/ethereum/cpp-ethereum) specifies several different "profiles" for how the VM works.
-Here we provide each protocol from the C++ implementation, as the yellowpaper does not contain all the different profiles.
+Here we provide each protocol from the C++ implementation, as the YellowPaper does not contain all the different profiles.
 Specify which profile by passing in the argument `-cSCHEDULE=<FEE_SCHEDULE>` when calling `krun` (the available `<FEE_SCHEDULE>` are supplied here).
 
 A `ScheduleFlag` is a boolean determined by the fee schedule; applying a `ScheduleFlag` to a `Schedule` yields whether the flag is set or not.
@@ -1910,13 +2048,24 @@ A `ScheduleFlag` is a boolean determined by the fee schedule; applying a `Schedu
  // --------------------------------------------------------------------------------------------------------------------------
 ```
 
-A `ScheduleConst` is a constant determined by the fee schedule; applying a `ScheduleConst` to a `Schedule` yields the correct constant for that schedule.
+### Schedule Constants
+
+A `ScheduleConst` is a constant determined by the fee schedule.
 
 ```{.k .uiuck .rvk}
     syntax Int ::= ScheduleConst "<" Schedule ">" [function]
- // --------------------------------------------------------
 
-    syntax ScheduleConst ::= "Gzero"        | "Gbase"        | "Gverylow"      | "Glow"           | "Gmid"         | "Ghigh"
+    syntax ScheduleConst ::= "Gzero" | "Gbase" | "Gverylow"
+ // -------------------------------------------------------
+```
+
+. . .
+
+### End Schedule Constants
+
+
+```{.k .uiuck .rvk}
+    syntax ScheduleConst ::= "Glow"         | "Gmid"         | "Ghigh"
                            | "Gextcodesize" | "Gextcodecopy" | "Gbalance"      | "Gsload"         | "Gjumpdest"    | "Gsstoreset"
                            | "Gsstorereset" | "Rsstoreclear" | "Rselfdestruct" | "Gselfdestruct"  | "Gcreate"      | "Gcodedeposit"
                            | "Gcall"        | "Gcallvalue"   | "Gcallstipend"  | "Gnewaccount"    | "Gexp"         | "Gexpbyte"
@@ -1925,13 +2074,20 @@ A `ScheduleConst` is a constant determined by the fee schedule; applying a `Sche
  // ------------------------------------------------------------------------------------------------------------------------------------------------
 ```
 
-### Defualt Schedule
+### Default Schedule
 
 ```{.k .uiuck .rvk}
     syntax Schedule ::= "DEFAULT"
  // -----------------------------
-    rule Gzero    < DEFAULT > => 0
-    rule Gbase    < DEFAULT > => 2
+    rule Gzero < DEFAULT > => 0
+    rule Gbase < DEFAULT > => 2
+```
+
+. . .
+
+### End Default Schedule
+
+```{.k .uicuk .rvk}
     rule Gverylow < DEFAULT > => 3
     rule Glow     < DEFAULT > => 5
     rule Gmid     < DEFAULT > => 8
@@ -2082,8 +2238,13 @@ static const EVMSchedule HomesteadSchedule = EVMSchedule(true, true, 53000);
 ```{.k .uiuck .rvk}
     syntax Schedule ::= "EIP150"
  // ----------------------------
-    rule Gbalance      < EIP150 > => 400
-    rule Gsload        < EIP150 > => 200
+    rule Gbalance < EIP150 > => 400
+    rule Gsload   < EIP150 > => 200
+```
+
+### End EIP150 Schedule
+
+```{.k .uiuck .rvk}
     rule Gcall         < EIP150 > => 700
     rule Gselfdestruct < EIP150 > => 5000
     rule Gextcodesize  < EIP150 > => 700
