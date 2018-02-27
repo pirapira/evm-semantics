@@ -136,6 +136,7 @@ tests/ethereum-tests/VMTests/%.test: tests/ethereum-tests/VMTests/% build
 
 # BlockchainTests
 
+more_bchain_tests=$(wildcard tests/ethereum-tests/BlockchainTests/bcInvalidHeaderTest/*.json)
 bchain_tests=$(wildcard tests/ethereum-tests/BlockchainTests/GeneralStateTests/*/*.json)
 slow_bchain_tests=$(wildcard tests/ethereum-tests/BlockchainTests/GeneralStateTests/stQuadraticComplexityTest/*.json) \
                   $(wildcard tests/ethereum-tests/BlockchainTests/GeneralStateTests/stStaticCall/static_Call50000*.json) \
@@ -145,6 +146,7 @@ slow_bchain_tests=$(wildcard tests/ethereum-tests/BlockchainTests/GeneralStateTe
 quick_bchain_tests=$(filter-out $(slow_bchain_tests), $(bchain_tests))
 
 bchain-test-all: $(bchain_tests:=.test)
+more-bchain-test: $(more_bchain_tests:=.test)
 bchain-test: $(quick_bchain_tests:=.test)
 
 tests/ethereum-tests/BlockchainTests/%.test: tests/ethereum-tests/BlockchainTests/% build
